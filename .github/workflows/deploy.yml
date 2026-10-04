@@ -53,18 +53,6 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: OIDC 토큰 내용 확인 (디버그용)
-        run: |
-          TOKEN=$(curl -sSL -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
-          python3 -c "
-          import sys, json, base64
-          p = sys.argv[1].split('.')[1]
-          p += '=' * (-len(p) % 4)
-          d = json.loads(base64.urlsafe_b64decode(p))
-          print(json.dumps({k: d.get(k) for k in ['sub', 'aud', 'iss', 'repository', 'ref']}, indent=2))
-          " "$TOKEN"
-
       - name: AWS 로그인 (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -80,8 +68,10 @@ jobs:
             --comment "deploy ${{ github.sha }}" \
             --parameters 'commands=[
               "set -e",
+              "git config --system --add safe.directory ${{ env.APP_DIR }}",
               "cd ${{ env.APP_DIR }}",
-              "sudo -u ubuntu git pull",
+              "git fetch origin main",
+              "git reset --hard origin/main",
               "docker compose -f docker-compose.prod.yml pull",
               "docker compose -f docker-compose.prod.yml up -d",
               "docker image prune -f"
