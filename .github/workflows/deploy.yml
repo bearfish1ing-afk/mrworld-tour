@@ -56,7 +56,7 @@ jobs:
       - name: AWS 로그인 (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: arn:aws:iam::913427211820:role/github-actions-deploy-role
           aws-region: ${{ env.AWS_REGION }}
 
       - name: EC2에 배포 명령 보내기
