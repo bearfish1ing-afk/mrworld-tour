@@ -28,6 +28,18 @@ public class AuthController {
                 .body(response);
     }
 
+    //관리자 회원가입
+    @PostMapping("/admin/auth/signup")
+    public ResponseEntity<AuthDto.SignupResponse> adminSignup(
+            @Valid @RequestBody AuthDto.SignupRequest request
+    ) {
+        AuthDto.SignupResponse response = authService.signupAdmin(request);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(response);
+    }
+
     // 일반 회원 로그인
     @PostMapping("/auth/login")
     public ResponseEntity<AuthDto.LoginResponse> login(

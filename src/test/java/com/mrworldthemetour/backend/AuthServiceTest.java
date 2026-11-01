@@ -157,6 +157,7 @@ class AuthServiceTest {
         when(userRepository.findByEmail(EMAIL))
                 .thenReturn(Optional.of(user));
         when(user.getPasswordHash()).thenReturn("stored-hash");
+        when(user.getRole()).thenReturn(User.Role.USER);
         when(passwordEncoder.matches(PASSWORD, "stored-hash"))
                 .thenReturn(true);
 

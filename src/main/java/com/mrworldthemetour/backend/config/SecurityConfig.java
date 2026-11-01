@@ -214,6 +214,7 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/auth/sms/request",
                                 "/api/auth/sms/verify",
+                                "/api/admin/auth/signup",
                                 "/api/admin/auth/login"
                         ).permitAll()
 

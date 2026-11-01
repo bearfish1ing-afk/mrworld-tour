@@ -76,6 +76,54 @@ public class AuthService {
         );
     } //회원가입
 
+    @Transactional
+    public AuthDto.SignupResponse signupAdmin(AuthDto.SignupRequest request) {
+
+        String email = request.email()
+                .strip()
+                .toLowerCase(Locale.ROOT);
+
+        String phoneNum = request.phoneNum().replace("-", "");
+
+        if (userRepository.existsByEmail(email)) {
+            throw new BusinessException(
+                    HttpStatus.CONFLICT,
+                    "EMAIL_ALREADY_EXISTS",
+                    "이미 사용 중인 이메일입니다."
+            );
+        }
+
+        if (userRepository.existsByPhoneNum(phoneNum)) {
+            throw new BusinessException(
+                    HttpStatus.CONFLICT,
+                    "PHONE_ALREADY_EXISTS",
+                    "이미 가입된 전화번호입니다."
+            );
+        }
+
+        String passwordHash = passwordEncoder.encode(request.password());
+
+        signupProofVerifier.verifyAndConsume(
+                request.signupProof(),
+                phoneNum
+        );
+
+        User admin = User.createAdmin(
+                email,
+                passwordHash,
+                phoneNum,
+                request.name().strip(),
+                request.address().strip()
+        );
+
+        User savedAdmin = userRepository.saveAndFlush(admin);
+
+        return new AuthDto.SignupResponse(
+                savedAdmin.getId(),
+                "관리자 회원가입이 완료되었습니다."
+        );
+    } // 관리자 회원가입
+
     @Transactional(readOnly = true)
     public AuthDto.LoginResponse login(AuthDto.LoginRequest request) {
 
@@ -97,6 +145,14 @@ public class AuthService {
                     "이메일 또는 비밀번호가 올바르지 않습니다."
             );
         }
+
+        if (user.getRole() != User.Role.USER) {
+            throw new BusinessException(
+                    HttpStatus.FORBIDDEN,
+                    "USER_ACCESS_DENIED",
+                    "관리자 계정은 관리자 모드로 로그인해야 합니다."
+            );
+        }//로그인 모드에 맞는 권한 검증
 
         return new AuthDto.LoginResponse(
                 jwtTokenService.createAccessToken(user),
@@ -127,13 +183,13 @@ public class AuthService {
             );
         }
 
-        if(!user.getRole().equals(User.Role.ADMIN)){
+        if (user.getRole() != User.Role.ADMIN) {
             throw new BusinessException(
                     HttpStatus.FORBIDDEN,
                     "ADMIN_ACCESS_DENIED",
                     "관리자 계정만 로그인할 수 있습니다."
             );
-        }//관리자 권한 검증
+        }//로그인 모드에 맞는 권한 검증
 
         return new AuthDto.LoginResponse(
                 jwtTokenService.createAccessToken(user),
