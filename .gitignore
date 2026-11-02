@@ -36,7 +36,8 @@ out/
 ### VS Code ###
 .vscode/
 
+
 ### env ###
 .env
-.env.*
+*.pem
 !.env.example
