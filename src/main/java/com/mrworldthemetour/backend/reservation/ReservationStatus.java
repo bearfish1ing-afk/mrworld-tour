@@ -1,4 +1,4 @@
-package com.example.mrworldthemetour.backend.entity;
+package com.mrworldthemetour.backend.reservation;
 
 public enum ReservationStatus {
     PENDING,//확정 대기

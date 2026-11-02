@@ -1,4 +1,4 @@
-package com.example.mrworldthemetour.backend.entity;
+package com.mrworldthemetour.backend.reservation;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -17,7 +17,7 @@ public class ReservationOption {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reservation_id",nullable = false)
-    private com.example.mrworldthemetour.backend.entity.Reservation reservation;
+    private Reservation reservation;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false,length = 20)
@@ -42,7 +42,7 @@ public class ReservationOption {
         this.extraPrice = extraPrice;
     }
 
-    void setReservation(com.example.mrworldthemetour.backend.entity.Reservation reservation) {
+    void setReservation(Reservation reservation) {
         this.reservation = reservation;
     }
 }

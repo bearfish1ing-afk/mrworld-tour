@@ -1,4 +1,4 @@
-package com.example.mrworldthemetour.backend.entity;
+package com.mrworldthemetour.backend.reservation;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -87,7 +87,7 @@ public class Reservation {
         this.reservedAt = LocalDateTime.now();
     }
 
-    public void addOption(com.example.mrworldthemetour.backend.entity.ReservationOption option){
+    public void addOption(ReservationOption option){
         options.add(option);
         option.setReservation(this);
     }

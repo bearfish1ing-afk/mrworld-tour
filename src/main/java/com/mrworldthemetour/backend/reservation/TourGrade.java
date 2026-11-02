@@ -1,4 +1,4 @@
-package com.example.mrworldthemetour.backend.entity;
+package com.mrworldthemetour.backend.reservation;
 
 import lombok.Getter;
 

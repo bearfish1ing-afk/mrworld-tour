@@ -1,4 +1,4 @@
-package com.example.mrworldthemetour.backend.dto;
+package com.mrworldthemetour.backend.reservation;
 
 import java.util.List;
 

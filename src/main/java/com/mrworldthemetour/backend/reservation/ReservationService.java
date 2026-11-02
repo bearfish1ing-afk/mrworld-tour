@@ -1,17 +1,10 @@
-package com.example.mrworldthemetour.backend.service;
+package com.mrworldthemetour.backend.reservation;
 
-import com.example.mrworldthemetour.backend.dto.PriceRequest;
-import com.example.mrworldthemetour.backend.dto.PriceResponse;
-import com.example.mrworldthemetour.backend.dto.ReservationCreateRequest;
-import com.example.mrworldthemetour.backend.dto.ReservationCreateResponse;
-import com.example.mrworldthemetour.backend.entity.*;
-import com.example.mrworldthemetour.backend.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
-import java.time.LocalDateTime;
 
 //TODO: 기념품 재고 차감 (재고 부족해도 예약은 진행)
 //TODO: 신청 인원 3명 이상이면 출발 확정 + 예약자 전원에게 문자

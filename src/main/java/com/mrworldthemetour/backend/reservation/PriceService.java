@@ -1,4 +1,4 @@
-package com.example.mrworldthemetour.backend.service;
+package com.mrworldthemetour.backend.reservation;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

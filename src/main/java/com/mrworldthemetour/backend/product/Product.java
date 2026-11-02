@@ -111,3 +111,9 @@ public class Product {
         this.updatedAt = LocalDateTime.now();
     }
 }
+
+/*
+TODO:
+상품 조회 컨트롤러를 구현할 때 실제 경로에 맞춰 **상품 목록·상세 GET 요청만 permitAll()**로 추가해야 합니다.
+현재 명세의 비회원 조회와는 아직 맞지 않습니다.
+ */

@@ -1,6 +1,4 @@
-package com.example.mrworldthemetour.backend.dto;
-
-import com.example.mrworldthemetour.backend.entity.ReservationStatus;
+package com.mrworldthemetour.backend.reservation;
 
 public record ReservationCreateResponse(
         Long reservationId,

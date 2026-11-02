@@ -1,6 +1,4 @@
-package com.example.mrworldthemetour.backend.dto;
-
-import com.example.mrworldthemetour.backend.entity.OptionType;
+package com.mrworldthemetour.backend.reservation;
 
 import java.util.List;
 
