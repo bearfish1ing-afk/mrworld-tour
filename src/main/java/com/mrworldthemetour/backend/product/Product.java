@@ -23,6 +23,20 @@ public class Product {
     @JoinColumn(name = "theme_id")
     private Theme theme;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "default_vehicle_option_id")
+    private ProductOption defaultVehicleOption;
+
+    public void changeDefaultVehicleOption(ProductOption option) {
+        if (option == null || getId() == null || option.getProduct() == null
+                || !getId().equals(option.getProduct().getId())
+                || option.getOptionType() != ProductOptionType.VEHICLE) {
+            throw new IllegalArgumentException("해당 상품의 차량 옵션만 기본 교통수단으로 지정할 수 있습니다.");
+        }
+        this.defaultVehicleOption = option;
+    }
+
+
     @Column(name = "product_code", length = 30)
     private String productCode;
 
@@ -41,8 +55,9 @@ public class Product {
     @Column(name = "base_price")
     private Long basePrice;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20)
-    private String status;
+    private ProductStatus status;
 
     @Column(name = "departure_date")
     private LocalDate departureDate;
@@ -76,7 +91,7 @@ public class Product {
             String duration,
             String description,
             Long basePrice,
-            String status,
+            ProductStatus status,
             LocalDate departureDate,
             LocalDate returnDate,
             LocalDateTime deadline,
@@ -90,7 +105,7 @@ public class Product {
         this.duration = duration;
         this.description = description;
         this.basePrice = basePrice;
-        this.status = status;
+        this.status = java.util.Objects.requireNonNull(status, "상품 상태가 필요합니다.");
         this.departureDate = departureDate;
         this.returnDate = returnDate;
         this.deadline = deadline;
@@ -110,10 +125,19 @@ public class Product {
     private void preUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
+
+    public enum ProductStatus {
+        DRAFT,       // 작성 중: 고객에게 공개하지 않음
+        RECRUITING,  // 모집 중: 예약 가능
+        CONFIRMED,   // 출발 확정: 최소 출발 인원 충족
+        CLOSED,      // 모집 마감: 추가 예약 불가
+        CANCELED,    // 출발 취소
+        COMPLETED    // 여행 완료
+    }
 }
 
 /*
 TODO:
 상품 조회 컨트롤러를 구현할 때 실제 경로에 맞춰 **상품 목록·상세 GET 요청만 permitAll()**로 추가해야 합니다.
-현재 명세의 비회원 조회와는 아직 맞지 않습니다.
+현재 명세의 비회원 조회와는 아직 맞지 않습니다. -> 완료
  */

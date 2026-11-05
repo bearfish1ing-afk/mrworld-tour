@@ -29,6 +29,29 @@ public class ProductGrade {
     @Column(name = "is_default")
     private Boolean defaultGrade;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "default_hotel_option_id", nullable = false)
+    private ProductOption defaultHotelOption;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "default_meal_option_id", nullable = false)
+    private ProductOption defaultMealOption;
+
+    public void changeDefaultOptions(ProductOption hotel, ProductOption meal) {
+        validateDefault(hotel, ProductOptionType.HOTEL);
+        validateDefault(meal, ProductOptionType.MEAL);
+        this.defaultHotelOption = hotel;
+        this.defaultMealOption = meal;
+    }
+
+    private void validateDefault(ProductOption option, ProductOptionType type) {
+        if (option == null || option.getOptionType() != type || product == null
+                || product.getId() == null || option.getProduct() == null
+                || !product.getId().equals(option.getProduct().getId())) {
+            throw new IllegalArgumentException("동일 상품의 기본 " + type + " 옵션이 필요합니다.");
+        }
+    }
+
     public ProductGrade(
             Product product,
             String grade,

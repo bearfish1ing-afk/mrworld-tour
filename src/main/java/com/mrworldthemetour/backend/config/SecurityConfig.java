@@ -220,6 +220,13 @@ public class SecurityConfig {
 
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/products",
+                                "/products/search",
+                                "/products/{productId}"
+                        ).permitAll()
+
                         .anyRequest().authenticated()
                 )
 

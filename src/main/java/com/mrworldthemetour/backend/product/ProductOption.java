@@ -20,8 +20,9 @@ public class ProductOption {
     @JoinColumn(name = "product_id")
     private Product product;
 
-    @Column(name = "option_type", length = 20)
-    private String optionType;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "option_type", length = 20, nullable = false)
+    private ProductOptionType optionType;
 
     @Column(name = "option_name", length = 100)
     private String optionName;
@@ -32,15 +33,36 @@ public class ProductOption {
     @Column(name = "apply_rule", length = 20)
     private String applyRule;
 
+    @Column(name = "hotel_address", length = 255)
+    private String hotelAddress;
+
+    @Column(name = "hotel_rating")
+    private Integer hotelRating;
+
+    public static ProductOption hotel(Product product, String name, Long price,
+                                      String rule, String address, Integer rating) {
+        if (address == null || address.isBlank() || rating == null
+                || rating < 3 || rating > 5) {
+            throw new IllegalArgumentException("호텔 주소와 3~5성급 정보가 필요합니다.");
+        }
+        ProductOption option = new ProductOption(product, ProductOptionType.HOTEL, name, price, rule);
+        option.hotelAddress = address;
+        option.hotelRating = rating;
+        return option;
+    }
+
     public ProductOption(
             Product product,
-            String optionType,
+            ProductOptionType optionType,
             String optionName,
             Long extraPrice,
             String applyRule
     ) {
+        if (!"PER_PERSON".equals(applyRule) && !"PER_RESERVATION".equals(applyRule)) {
+            throw new IllegalArgumentException("지원하지 않는 요금 적용 규칙입니다.");
+        }
         this.product = product;
-        this.optionType = optionType;
+        this.optionType = java.util.Objects.requireNonNull(optionType, "옵션 종류가 필요합니다.");
         this.optionName = optionName;
         this.extraPrice = extraPrice;
         this.applyRule = applyRule;
