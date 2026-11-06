@@ -40,3 +40,4 @@ out/
 ### env ###
 .env
 *.pem
+!.env.example

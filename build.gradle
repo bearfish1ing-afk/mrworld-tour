@@ -1,43 +1,71 @@
 plugins {
-    id 'java'
-    id 'org.springframework.boot' version '4.0.7'
-    id 'io.spring.dependency-management' version '1.1.7'
+	id 'java'
+	id 'org.springframework.boot' version '4.0.7'
+	id 'io.spring.dependency-management' version '1.1.7'
 }
 
-group = 'com.example'
+group = 'com.mrworldthemetour'
 version = '0.0.1-SNAPSHOT'
 description = 'mrworld'
 
 java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
-    }
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
 }
 
 repositories {
-    mavenCentral()
+	mavenCentral()
 }
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    implementation 'org.springframework.boot:spring-boot-starter-security'
+    // HTTP API
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
-    compileOnly 'org.projectlombok:lombok'
+
+    // 인증·인가·비밀번호 해싱
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // JWT Bearer Token 검증
+    implementation 'org.springframework.boot:spring-boot-starter-security-oauth2-resource-server'
+
+    // MySQL 데이터 접근
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     runtimeOnly 'com.mysql:mysql-connector-j'
+
+    // 요청 DTO 및 설정값 검증
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // DB 스키마 변경 이력
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+    runtimeOnly 'org.flywaydb:flyway-mysql'
+
+    // SOLAPI
+    implementation 'com.solapi:sdk:1.2.0'
+
+    // 사용자 정의 설정의 IDE 자동완성 메타데이터
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
-    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
+
+    // 테스트
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-    testCompileOnly 'org.projectlombok:lombok'
+    testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // 테스트 코드에서 Lombok을 사용할 경우
+    testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
 
-    //.env
-    implementation 'me.paulschwarz:springboot4-dotenv:5.0.1'
+    //Swagger
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.0'
 }
 
 tasks.named('test') {
-    useJUnitPlatform()
+	useJUnitPlatform()
 }
 
 jar{
