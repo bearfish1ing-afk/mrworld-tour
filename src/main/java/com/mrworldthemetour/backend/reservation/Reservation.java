@@ -1,10 +1,12 @@
 package com.mrworldthemetour.backend.reservation;
 
+import com.mrworldthemetour.backend.exception.BusinessException;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.http.HttpStatus;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -100,9 +102,28 @@ public class Reservation {
     }
 
     public void confirm(){
-//        if(status==ReservationStatus.CANCELED){
-//            throw new IllegalStateException("취소된 예약은 확정하지 못합니다.");
-//        }
+        if(status==ReservationStatus.CANCELED){
+            throw new IllegalStateException("취소된 예약은 확정하지 못합니다.");
+        }
         this.status= ReservationStatus.CONFIRMED;
+    }
+
+    public void changeSelection(Long productGradeId, Integer people, String vehicle,
+                                Long baseAmount, Long optionAmount,
+                                Long discountAmount, Long finalAmount){
+        if(status!=ReservationStatus.PENDING){
+            throw new IllegalStateException("확정 대기 상태의 예약만 변경할 수 있습니다.");
+        }
+        this.productGradeId=productGradeId;
+        this.people=people;
+        this.vehicle=vehicle;
+        this.baseAmount=baseAmount;
+        this.optionAmount=optionAmount;
+        this.discountAmount=discountAmount;
+        this.finalAmount=finalAmount;
+    }
+
+    public void clearOptions(){
+        options.clear();
     }
 }

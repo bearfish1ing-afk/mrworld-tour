@@ -110,6 +110,11 @@ public class Product {
     private void preUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
+
+    public void changePeople(int people){
+        int current=this.currentPeople==null? 0:this.currentPeople;
+        this.currentPeople=current+people;
+    }
 }
 
 /*

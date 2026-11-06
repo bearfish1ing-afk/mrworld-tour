@@ -1,0 +1,17 @@
+package com.mrworldthemetour.backend.reservation;
+
+import java.util.List;
+
+public record ReservationChangeRequest(
+        Long productGradeId,
+        Integer people,
+        Long hotelOptionId,
+        Long mealOptionId,
+        Long vehicleOptionId,
+        List<PriceRequest.DrinkRequest> drinks
+) {
+    public PriceRequest toPriceRequest(Long productId, Integer people) {
+        return new PriceRequest(productId, productGradeId, people,
+                hotelOptionId, mealOptionId, vehicleOptionId, drinks);
+    }
+}

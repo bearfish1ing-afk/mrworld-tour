@@ -3,7 +3,6 @@ package com.mrworldthemetour.backend.reservation;
 import java.util.List;
 
 public record ReservationCreateRequest(
-        Long userId,
         Long productId,
         Long productGradeId,
         Integer people,

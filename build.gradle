@@ -59,6 +59,9 @@ dependencies {
     // 테스트 코드에서 Lombok을 사용할 경우
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
+
+    //Swagger
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.0'
 }
 
 tasks.named('test') {
