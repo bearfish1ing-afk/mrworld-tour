@@ -18,7 +18,7 @@ public record UserResponse(
         User.Level level,
         User.Role role
 ) {
-    public static UserResponse from(User user) {
+    public static UserResponse from(User user, User.Level level) {
         return new UserResponse(
                 user.getId(),
                 user.getEmail(),
@@ -27,7 +27,7 @@ public record UserResponse(
                 user.getNickname(),
                 user.getAddress(),
                 user.getCreatedAt(),
-                user.getLevel(),
+                level,
                 user.getRole()
         );
     }

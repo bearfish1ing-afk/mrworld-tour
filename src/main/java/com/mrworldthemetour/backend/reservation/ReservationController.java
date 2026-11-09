@@ -17,8 +17,11 @@ public class ReservationController {
 
     //예상 금액 계산
     @PostMapping("/price")
-    public ResponseEntity<PriceResponse> calculatePrice(@RequestBody PriceRequest request){
-        return ResponseEntity.ok(priceService.calculate(request));
+    public ResponseEntity<PriceResponse> calculatePrice(
+            Authentication authentication,
+            @RequestBody PriceRequest request){
+        Long userId = authentication == null ? null : Long.valueOf(authentication.getName());
+        return ResponseEntity.ok(priceService.calculate(request,userId));
     }
 
     //예약신청

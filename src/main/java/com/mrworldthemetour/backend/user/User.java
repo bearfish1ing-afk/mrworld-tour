@@ -136,7 +136,6 @@ public class User {
     public enum Level {
         BRONZE,
         SILVER,
-        GOLD,
-        DIAMOND
+        GOLD
     }
 }

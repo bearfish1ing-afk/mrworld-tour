@@ -7,6 +7,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.mrworldthemetour.backend.reservation.PriceResponse.PriceItem;
+
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.function.Function;
@@ -18,9 +20,10 @@ public class PriceService {
     private final ProductRepository productRepository;
     private final ProductGradeRepository productGradeRepository;
     private final ProductOptionRepository productOptionRepository;
+    private final CustomerLevelService customerLevelService;
 
     //reservation 계산
-    public PriceResponse calculate(PriceRequest request){
+    public PriceResponse calculate(PriceRequest request,Long userId){
         if(request.productId()==null || request.productGradeId()==null){
             throw badRequest("REQUIRED_VALUE_MISSING", "상품과 등급을 선택해 주세요.");
         }
@@ -65,7 +68,8 @@ public class PriceService {
         //합계
         long baseAmount=nz(product.getBasePrice())*people;
         long optionAmount=items.stream().mapToLong(PriceItem::amount).sum();
-        long discountAmount=0L;//TODO: 단골 할인 추가해야함
+        CustomerLevel level=customerLevelService.levelCalculate(userId);
+        long discountAmount=level.discount(baseAmount+optionAmount);
         long finalAmount=baseAmount+optionAmount-discountAmount;
 
         return new PriceResponse(baseAmount, items, optionAmount, discountAmount, finalAmount);
@@ -142,7 +146,7 @@ public class PriceService {
     }
 
     private boolean isType(ProductOption option, OptionType type){
-        return option.getOptionType()!=null && type.name().equalsIgnoreCase(option.getOptionType().trim());
+        return option.getOptionType()!=null && type.name().equalsIgnoreCase(option.getOptionType().name());
     }
 
     private String defaultHotelName(TourGrade grade){

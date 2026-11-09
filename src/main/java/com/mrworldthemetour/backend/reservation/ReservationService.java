@@ -4,6 +4,7 @@ import com.mrworldthemetour.backend.exception.BusinessException;
 import com.mrworldthemetour.backend.product.Product;
 import com.mrworldthemetour.backend.product.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,17 +12,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 //TODO 동시성: 여러 명이 동시에 예약해도 정원을 넘지 않게 상품 조회 시 잠금 (@Lock 비관적 락 또는 @Version)
 
 @Service
 @RequiredArgsConstructor
 public class ReservationService {
-    private static final String ON_SALE = "ON_SALE";//TODO 상품 담당이 쓰는 판매 상태 값과 맞추기
-
     private static final String CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     private static final int CODE_LENGTH = 5;
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -29,6 +26,8 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final ProductRepository productRepository;
     private final PriceService priceService;
+
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public ReservationCreateResponse create(Long userId, ReservationCreateRequest request) {
@@ -42,7 +41,7 @@ public class ReservationService {
         validateReservable(product, request.people());
 
         //금액 계산
-        PriceResponse price = priceService.calculate(request.toPriceRequest());
+        PriceResponse price = priceService.calculate(request.toPriceRequest(),userId);
 
         //예약 생성 (테마 기념품 자동 배정)
         //Long souvenirItemId = product.getTheme().getItem().getId();
@@ -75,12 +74,15 @@ public class ReservationService {
         return toResponse(saved);
     }
 
+    //출발전, 출발 확정 후 계속 예약 가능
+    private static final Set<Product.ProductStatus> RESERVABLE=
+            EnumSet.of(Product.ProductStatus.RECRUITING, Product.ProductStatus.CONFIRMED);
+
     private void validateReservable(Product product, Integer people) {
-        if (!ON_SALE.equals(product.getStatus())) {
+        if (!RESERVABLE.equals(product.getStatus())) {
             throw new BusinessException(HttpStatus.CONFLICT,
-                    "PRODUCT_NOT_ON_SALE", "판매 중인 상품이 아닙니다.");
+                    "PRODUCT_NOT_RESERVABLE", "판매 중인 상품이 아닙니다.");
         }
-        //TODO 출발 취소된 상품이면 예약 막기 (Product에 출발 상태 컬럼 생기면)
         validateBeforeDeadline(product, "RECRUITMENT_CLOSED", "모집이 마감된 상품입니다.");
         validateSeats(product, people);
     }
@@ -155,6 +157,20 @@ public class ReservationService {
     private ReservationCreateResponse toResponse(Reservation reservation) {
         return new ReservationCreateResponse(reservation.getId(), reservation.getReservationCode(),
                 reservation.getStatus(), reservation.getFinalAmount());
+    }
+
+    //출발 상태 평가(신청 인원 3명 이상이면 출발 확정)
+    private void reevaluateDeparture(Product product){
+        int min=product.getMinPeople()==null? 3: product.getMinPeople();
+        int current=product.getCurrentPeople()==null? 0:product.getCurrentPeople();
+
+        if(product.getStatus() == Product.ProductStatus.RECRUITING && current >= min){
+            //product depart confirm이라는것을 알수 잇어야함
+            eventPublisher.publishEvent(new DepartureConfirmedEvent(product.getId()));
+        }
+        else if(product.getStatus() == Product.ProductStatus.CONFIRMED && current < min){
+            //취소되어야하나?
+        }
     }
 
 
@@ -250,7 +266,7 @@ public class ReservationService {
         validateSeats(product, delta);
 
         PriceResponse price = priceService.calculate(
-                request.toPriceRequest(product.getId(), newPeople));
+                request.toPriceRequest(product.getId(), newPeople),userId);
 
         replaceOptions(reservation, price);
         reservation.changeSelection(findGradeId(price), newPeople, findVehicleName(price),
