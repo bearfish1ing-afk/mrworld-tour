@@ -38,7 +38,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                   )
             """) //검색에 와일드카드 활용
     Page<Product> search(
-            @Param("statuses") Collection<Product.ProductStatus> statuses,
+            @Param("statuses") Collection<ProductStatus> statuses,
             @Param("now") LocalDateTime now,
             @Param("themeId") Long themeId,
             @Param("departureFrom") LocalDate departureFrom,
@@ -50,7 +50,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     );
 
     @EntityGraph(attributePaths = "theme")
-    Optional<Product> findByIdAndStatusIn(Long id, Collection<Product.ProductStatus> statuses);
+    Optional<Product> findByIdAndStatusIn(Long id, Collection<ProductStatus> statuses);
 
     @Override
     @EntityGraph(attributePaths = "theme")

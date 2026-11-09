@@ -40,7 +40,7 @@ public final class ProductDto {
             String country,
             String duration,
             Long basePrice,
-            Product.ProductStatus status,
+            ProductStatus status,
             LocalDate departureDate,
             LocalDate returnDate,
             LocalDateTime deadline,
@@ -165,7 +165,7 @@ public final class ProductDto {
             @jakarta.validation.constraints.Size(max = 1000) String description,
             @jakarta.validation.constraints.NotNull
             @jakarta.validation.constraints.PositiveOrZero Long basePrice,
-            @jakarta.validation.constraints.NotNull Product.ProductStatus status,
+            @jakarta.validation.constraints.NotNull ProductStatus status,
             @jakarta.validation.constraints.NotNull LocalDate departureDate,
             @jakarta.validation.constraints.NotNull LocalDate returnDate,
             @jakarta.validation.constraints.NotNull LocalDateTime deadline,

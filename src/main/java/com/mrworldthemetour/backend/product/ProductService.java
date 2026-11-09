@@ -18,8 +18,8 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class ProductService {
     //기본값 : 모집 중인 상태
-    private static final List<Product.ProductStatus> PUBLIC_STATUSES = List.of(
-            Product.ProductStatus.RECRUITING, Product.ProductStatus.CONFIRMED);
+    private static final List<ProductStatus> PUBLIC_STATUSES = List.of(
+            ProductStatus.RECRUITING, ProductStatus.CONFIRMED);
 
     private final ThemeRepository themeRepository;
     private final ProductRepository productRepository;
