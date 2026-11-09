@@ -133,6 +133,13 @@ public class ProductService {
             option = ProductOption.hotel(product, request.optionName().strip(),
                     request.extraPrice(), request.applyRule(),
                     request.hotelAddress().strip(), request.hotelRating());
+        } else if (request.optionType() == ProductOptionType.MEAL
+                || request.optionType() == ProductOptionType.DRINK) {
+            if (request.serviceLevel() == null || request.serviceLevel() < 1 || request.serviceLevel() > 3) {
+                throw invalidSearch("식사와 음료 등급은 1~3이어야 합니다.");
+            }
+            option = ProductOption.foodOrDrink(product, request.optionType(), request.optionName().strip(),
+                    request.extraPrice(), request.applyRule(), request.serviceLevel());
         } else {
             if (request.optionType() == null) {
                 throw invalidSearch("옵션 종류를 선택해 주세요.");
@@ -171,7 +178,8 @@ public class ProductService {
                 throw invalidSearch("테마의 최소 여행 등급보다 낮은 등급은 등록할 수 없습니다.");
             }
             requireOption(request, grade.hotelOptionIndex(), ProductOptionType.HOTEL);
-            requireOption(request, grade.mealOptionIndex(), ProductOptionType.MEAL);
+            resolveFoodIndex(request, selected, ProductOptionType.MEAL);
+            resolveFoodIndex(request, selected, ProductOptionType.DRINK);
         }
         Product product = productRepository.save(new Product(theme, request.productCode(),
                 request.title(), request.country(), request.duration(), request.description(),
@@ -185,12 +193,37 @@ public class ProductService {
         product.changeDefaultVehicleOption(options.get(vehicleIndex));
         for (var input : request.grades()) {
             ProductGrade grade = new ProductGrade(product, input.grade(), input.extraPrice(), input.defaultGrade());
-            grade.changeDefaultOptions(options.get(input.hotelOptionIndex()), options.get(input.mealOptionIndex()));
+            TravelGrade travelGrade = TravelGrade.valueOf(input.grade());
+            grade.initializeDefaultOptions(options.get(input.hotelOptionIndex()),
+                    options.get(resolveFoodIndex(request, travelGrade, ProductOptionType.MEAL)),
+                    options.get(resolveFoodIndex(request, travelGrade, ProductOptionType.DRINK)));
             productGradeRepository.save(grade);
         }
         productRepository.flush();
         return product.getId();
     } //여행 상품 생성
+
+    private int resolveFoodIndex(ProductDto.CreateRequest request, TravelGrade grade, ProductOptionType type) {
+        int level = switch (grade) {
+            case CLASSIC -> 1;
+            case GRAND -> 2;
+            case PREMIUM -> 3;
+        };
+        Integer matched = null;
+        for (int i = 0; i < request.options().size(); i++) {
+            var option = request.options().get(i);
+            if (option.optionType() == type && Integer.valueOf(level).equals(option.serviceLevel())) {
+                if (matched != null) {
+                    throw invalidSearch(type + "의 " + level + "단계 옵션은 하나만 등록해 주세요.");
+                }
+                matched = i;
+            }
+        }
+        if (matched == null) {
+            throw invalidSearch(grade + "의 기본 " + type + " 옵션(" + level + "단계)이 필요합니다.");
+        }
+        return matched;
+    }
 
     private int resolveDefaultVehicle(ProductDto.CreateRequest request, Theme theme) {
         Integer matched = null;
@@ -210,20 +243,6 @@ public class ProductService {
         }
         return matched;
     } //option에서 테마 기본 차량명과 일치하는 것 찾아 인덱스 반환 (차량 옵션 변경 시 추가 비용 발생하는 것 구현하기 위해 필요)
-
-    @Transactional
-    public void changeGradeDefaults(Long productId, Long gradeId, ProductDto.DefaultGradeOptionsRequest request) {
-        ProductGrade grade = productGradeRepository.findByIdAndProduct_Id(gradeId, productId)
-                .orElseThrow(() -> invalidSearch("해당 상품의 여행 등급이 아닙니다."));
-        ProductOption hotel = productOptionRepository.findByIdAndProduct_Id(request.hotelOptionId(), productId)
-                .orElseThrow(() -> invalidSearch("해당 상품의 호텔 옵션이 아닙니다."));
-        ProductOption meal = productOptionRepository.findByIdAndProduct_Id(request.mealOptionId(), productId)
-                .orElseThrow(() -> invalidSearch("해당 상품의 식사 옵션이 아닙니다."));
-        if (hotel.getOptionType() != ProductOptionType.HOTEL || meal.getOptionType() != ProductOptionType.MEAL) {
-            throw invalidSearch("호텔 및 식사 옵션 유형을 확인해 주세요.");
-        }
-        grade.changeDefaultOptions(hotel, meal);
-    } //개별 여행상품의 등급별 기본 옵션 지정
 
     private Product requireProduct(Long productId) {
         return productRepository.findById(productId)

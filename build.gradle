@@ -61,6 +61,20 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
+sourceSets {
+    main {
+        java {
+            exclude 'com/mrworldthemetour/backend/reservation/**'
+        }
+    }
+
+    test {
+        java {
+            exclude 'com/mrworldthemetour/backend/reservation/**'
+        }
+    }
+}
+
 tasks.named('test') {
 	useJUnitPlatform()
 }

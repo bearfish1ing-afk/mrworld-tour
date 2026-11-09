@@ -39,6 +39,20 @@ public class ProductOption {
     @Column(name = "hotel_rating")
     private Integer hotelRating;
 
+    @Column(name = "service_level")
+    private Integer serviceLevel;
+
+    public static ProductOption foodOrDrink(Product product, ProductOptionType type,
+            String name, Long price, String rule, Integer level) {
+        if ((type != ProductOptionType.MEAL && type != ProductOptionType.DRINK)
+                || level == null || level < 1 || level > 3) {
+            throw new IllegalArgumentException("식사와 음료는 1~3단계 등급이 필요합니다.");
+        }
+        ProductOption option = new ProductOption(product, type, name, price, rule);
+        option.serviceLevel = level;
+        return option;
+    }
+
     public static ProductOption hotel(Product product, String name, Long price,
                                       String rule, String address, Integer rating) {
         if (address == null || address.isBlank() || rating == null

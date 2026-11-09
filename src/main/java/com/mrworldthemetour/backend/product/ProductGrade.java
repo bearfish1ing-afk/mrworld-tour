@@ -37,9 +37,24 @@ public class ProductGrade {
     @JoinColumn(name = "default_meal_option_id", nullable = false)
     private ProductOption defaultMealOption;
 
-    public void changeDefaultOptions(ProductOption hotel, ProductOption meal) {
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "default_drink_option_id", nullable = false)
+    private ProductOption defaultDrinkOption;
+
+    public void initializeDefaultOptions(ProductOption hotel, ProductOption meal, ProductOption drink) {
         validateDefault(hotel, ProductOptionType.HOTEL);
         validateDefault(meal, ProductOptionType.MEAL);
+        validateDefault(drink, ProductOptionType.DRINK);
+        int expectedLevel = switch (TravelGrade.valueOf(grade)) {
+            case CLASSIC -> 1;
+            case GRAND -> 2;
+            case PREMIUM -> 3;
+        };
+        if (!Integer.valueOf(expectedLevel).equals(meal.getServiceLevel())
+                || !Integer.valueOf(expectedLevel).equals(drink.getServiceLevel())) {
+            throw new IllegalArgumentException("식사와 음료 등급이 여행 등급과 일치해야 합니다.");
+        }
+        this.defaultDrinkOption = drink;
         this.defaultHotelOption = hotel;
         this.defaultMealOption = meal;
     }

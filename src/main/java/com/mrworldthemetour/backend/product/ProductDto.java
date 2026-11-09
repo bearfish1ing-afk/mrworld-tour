@@ -73,7 +73,8 @@ public final class ProductDto {
             Long extraPrice,
             Boolean defaultGrade,
             Long defaultHotelOptionId,
-            Long defaultMealOptionId
+            Long defaultMealOptionId,
+            Long defaultDrinkOptionId
     ) {
         public static GradeResponse from(ProductGrade grade) {
             return new GradeResponse(
@@ -82,7 +83,8 @@ public final class ProductDto {
                     grade.getExtraPrice(),
                     grade.getDefaultGrade(),
                     grade.getDefaultHotelOption() == null ? null : grade.getDefaultHotelOption().getId(),
-                    grade.getDefaultMealOption() == null ? null : grade.getDefaultMealOption().getId()
+                    grade.getDefaultMealOption() == null ? null : grade.getDefaultMealOption().getId(),
+                    grade.getDefaultDrinkOption() == null ? null : grade.getDefaultDrinkOption().getId()
             );
         }
     }
@@ -94,7 +96,10 @@ public final class ProductDto {
             Long extraPrice,
             String applyRule,
             String hotelAddress,
-            Integer hotelRating
+            Integer hotelRating,
+            @jakarta.validation.constraints.Min(1)
+            @jakarta.validation.constraints.Max(3)
+            Integer serviceLevel
     ) {
         public static OptionResponse from(ProductOption option) {
             return new OptionResponse(
@@ -104,7 +109,8 @@ public final class ProductDto {
                     option.getExtraPrice(),
                     option.getApplyRule(),
                     option.getHotelAddress(),
-                    option.getHotelRating()
+                    option.getHotelRating(),
+                    option.getServiceLevel()
             );
         }
     }
@@ -137,7 +143,10 @@ public final class ProductDto {
             String applyRule,
             @jakarta.validation.constraints.Size(max = 255)
             String hotelAddress,
-            Integer hotelRating
+            Integer hotelRating,
+            @jakarta.validation.constraints.Min(1)
+            @jakarta.validation.constraints.Max(3)
+            Integer serviceLevel
     ) {}
 
     public record GradeCreateRequest(
@@ -147,9 +156,7 @@ public final class ProductDto {
             @jakarta.validation.constraints.PositiveOrZero Long extraPrice,
             boolean defaultGrade,
             @jakarta.validation.constraints.NotNull
-            @jakarta.validation.constraints.PositiveOrZero Integer hotelOptionIndex,
-            @jakarta.validation.constraints.NotNull
-            @jakarta.validation.constraints.PositiveOrZero Integer mealOptionIndex
+            @jakarta.validation.constraints.PositiveOrZero Integer hotelOptionIndex
     ) {}
 
     // 옵션 인덱스는 이 요청의 options 배열에서 0부터 시작하는 위치
@@ -177,11 +184,6 @@ public final class ProductDto {
             List<@jakarta.validation.constraints.NotNull @jakarta.validation.Valid OptionCreateRequest> options,
             @jakarta.validation.constraints.NotEmpty
             List<@jakarta.validation.constraints.NotNull @jakarta.validation.Valid GradeCreateRequest> grades
-    ) {}
-
-    public record DefaultGradeOptionsRequest(
-            @jakarta.validation.constraints.NotNull Long hotelOptionId,
-            @jakarta.validation.constraints.NotNull Long mealOptionId
     ) {}
 
     public record PageResponse(
