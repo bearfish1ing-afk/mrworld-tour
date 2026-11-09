@@ -1,4 +1,4 @@
-import React, { useState, type FormEvent } from "react";
+import React, { useState, type FormEvent, type KeyboardEvent } from "react";
 import { assets, type Product, type AdminSection } from "../types/admin";
 import {
   AdminShell,
@@ -21,7 +21,7 @@ export type ThemeItem = {
 };
 
 const initialThemes: ThemeItem[] = [
-  { id: "theme-1", name: "효도여행", allowedGrades: ["클래식", "프리미엄"] },
+  { id: "theme-1", name: "효도여행", allowedGrades: ["그랜드", "프리미엄"] },
   { id: "theme-2", name: "허니문", allowedGrades: ["그랜드", "프리미엄"] },
   { id: "theme-3", name: "힐링여행", allowedGrades: ["클래식", "프리미엄"] },
   { id: "theme-4", name: "미식여행", allowedGrades: ["그랜드", "프리미엄"] },
@@ -59,6 +59,8 @@ const defaultInitialAddOns: CustomAddOn[] = [
   { id: "addon-1", enabled: true, type: "숙소", name: "3등급 호텔", price: "0" },
   { id: "addon-2", enabled: false, type: "숙소", name: "4등급 호텔", price: "150,000" },
   { id: "addon-3", enabled: false, type: "숙소", name: "5등급 호텔", price: "300,000" },
+  { id: "addon-vehicle-1", enabled: true, type: "차량", name: "프리미엄 리무진", price: "0" },
+  { id: "addon-vehicle-2", enabled: false, type: "차량", name: "10인 승합 고급차량", price: "150,000" },
   { id: "addon-4", enabled: true, type: "식사", name: "도시락", price: "0" },
   { id: "addon-5", enabled: false, type: "식사", name: "현지식 레스토랑", price: "40,000" },
   { id: "addon-6", enabled: false, type: "식사", name: "고급 레스토랑", price: "80,000" },
@@ -69,8 +71,9 @@ const defaultInitialDrinks: CustomDrink[] = [
   { id: "drink-2", enabled: false, name: "커피", price: "30,000" },
 ];
 
-const tableColumns =
-  "grid-cols-[40px_320px_100px_90px_200px_140px_100px_120px_90px]";
+const tableColumnsStyle = {
+  gridTemplateColumns: "48px 2.5fr 1fr 0.9fr 2fr 1.2fr 1fr 1.1fr 90px",
+};
 
 function PriceInput({
   defaultValue,
@@ -325,87 +328,86 @@ export function AdminProductManagement({
           </div>
 
           <div className="w-full overflow-x-auto">
-            <div className="inline-block min-w-full align-middle">
-              <div className="w-[1240px]">
-                {/* 💡 헤더 행: w-full 및 bg-[#c7e8ef]로 가로 스크롤 끝까지 완벽 도색 */}
-                <div className={`grid h-10 w-full bg-[#c7e8ef] ${tableColumns}`}>
-                  <div className="flex items-center justify-center border-r border-b border-[#dde4e8]">
-                    <Checkbox checked={allSelected} onChange={toggleAll} />
-                  </div>
-                  {[
-                    "상품명 / 상품코드",
-                    "테마",
-                    "나라",
-                    "선택 가능한 투어 등급",
-                    "기본가격",
-                    "판매 상태",
-                    "최종 수정일",
-                    "관리",
-                  ].map((h) => (
-                    <div
-                      key={h}
-                      className="flex items-center justify-center border-r border-b border-[#dde4e8] px-2.5 font-['42dot_Sans:Bold'] text-[11px] font-bold text-[#65717e]"
-                    >
-                      {h}
-                    </div>
-                  ))}
+            <div className="w-full min-w-[1100px]">
+              <div
+                className="grid h-10 w-full bg-[#c7e8ef]"
+                style={tableColumnsStyle}
+              >
+                <div className="flex items-center justify-center border-r border-b border-[#dde4e8]">
+                  <Checkbox checked={allSelected} onChange={toggleAll} />
                 </div>
-
-                {/* 데이터 행들 */}
-                {filteredItems.map((product, index) => (
+                {[
+                  "상품명 / 상품코드",
+                  "테마",
+                  "나라",
+                  "선택 가능한 투어 등급",
+                  "기본가격",
+                  "판매 상태",
+                  "최종 수정일",
+                  "관리",
+                ].map((h) => (
                   <div
-                    key={product.name}
-                    className={`grid h-[54px] w-full ${tableColumns} ${
-                      selectedProducts.has(product.name) ? "bg-[#f1fafc]" : "bg-white"
-                    }`}
+                    key={h}
+                    className="flex items-center justify-center border-r border-b border-[#dde4e8] px-2.5 font-['42dot_Sans:Bold'] text-[11px] font-bold text-[#65717e]"
                   >
-                    <div className="flex items-center justify-center border-r border-b border-[#dde4e8]">
-                      <Checkbox
-                        checked={selectedProducts.has(product.name)}
-                        onChange={(checked) => toggleOne(product.name, checked)}
-                      />
-                    </div>
-                    <div
-                      className={`flex items-center border-r border-b border-[#dde4e8] px-2.5 text-[13px] text-[#17212b] ${
-                        index === 0 ? "font-['42dot_Sans:Bold'] font-bold" : ""
-                      }`}
-                    >
-                      {product.name}
-                    </div>
-                    <div className="flex items-center justify-center border-r border-b border-[#dde4e8] px-2 text-center text-xs text-[#17212b]">
-                      {product.theme}
-                    </div>
-                    <div className="flex items-center justify-center border-r border-b border-[#dde4e8] px-2 text-center text-xs text-[#17212b]">
-                      {product.country}
-                    </div>
-                    <div className="flex items-center justify-center border-r border-b border-[#dde4e8] px-2 text-center text-xs text-[#17212b]">
-                      {product.grades}
-                    </div>
-                    <div className="flex items-center justify-center border-r border-b border-[#dde4e8] px-2 font-['42dot_Sans:Bold'] text-xs font-bold">
-                      {product.price}원
-                    </div>
-                    <div
-                      className={`flex items-center justify-center border-r border-b border-[#dde4e8] px-2 text-xs ${
-                        product.status === "판매 중" ? "text-[#1596b4]" : "text-[#17212b]"
-                      }`}
-                    >
-                      {product.status}
-                    </div>
-                    <div className="flex items-center justify-center border-r border-b border-[#dde4e8] px-2 text-xs">
-                      {product.date}
-                    </div>
-                    <div className="flex items-center justify-center border-r border-b border-[#dde4e8]">
-                      <button
-                        type="button"
-                        onClick={() => setEditing(product)}
-                        className="min-h-7 rounded-md border border-[#c8d2d8] bg-white px-2.5 py-1 text-xs hover:bg-[#f8fafb]"
-                      >
-                        편집
-                      </button>
-                    </div>
+                    {h}
                   </div>
                 ))}
               </div>
+
+              {/* 데이터 행들 */}
+              {filteredItems.map((product, index) => (
+                <div
+                  key={product.name}
+                  style={tableColumnsStyle}
+                  className={`grid h-[54px] w-full ${
+                    selectedProducts.has(product.name) ? "bg-[#f1fafc]" : "bg-white"
+                  }`}
+                >
+                  <div className="flex items-center justify-center border-r border-b border-[#dde4e8]">
+                    <Checkbox
+                      checked={selectedProducts.has(product.name)}
+                      onChange={(checked) => toggleOne(product.name, checked)}
+                    />
+                  </div>
+                  <div
+                    className={`flex items-center border-r border-b border-[#dde4e8] px-2.5 text-[13px] text-[#17212b] ${
+                      index === 0 ? "font-['42dot_Sans:Bold'] font-bold" : ""
+                    }`}
+                  >
+                    {product.name}
+                  </div>
+                  <div className="flex items-center justify-center border-r border-b border-[#dde4e8] px-2 text-center text-xs text-[#17212b]">
+                    {product.theme}
+                  </div>
+                  <div className="flex items-center justify-center border-r border-b border-[#dde4e8] px-2 text-center text-xs text-[#17212b]">
+                    {product.country}
+                  </div>
+                  <div className="flex items-center justify-center border-r border-b border-[#dde4e8] px-2 text-center text-xs text-[#17212b]">
+                    {product.grades}
+                  </div>
+                  <div className="flex items-center justify-center border-r border-b border-[#dde4e8] px-2 font-['42dot_Sans:Bold'] text-xs font-bold">
+                    {product.price}원
+                  </div>
+                  <div
+                    className={`flex items-center justify-center border-r border-b border-[#dde4e8] px-2 text-xs`}
+                  >
+                    {product.status}
+                  </div>
+                  <div className="flex items-center justify-center border-r border-b border-[#dde4e8] px-2 text-xs">
+                    {product.date}
+                  </div>
+                  <div className="flex items-center justify-center border-r border-b border-[#dde4e8]">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(product)}
+                      className="min-h-7 rounded-md border border-[#c8d2d8] bg-white px-2.5 py-1 text-xs hover:bg-[#f8fafb]"
+                    >
+                      편집
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -681,6 +683,43 @@ function ProductEditView({
     }
   };
 
+  const handleAddAddOn = () => {
+    const name = newAddOn.name.trim();
+    if (!name) return;
+    setAddOnList((prev) => [
+      ...prev,
+      {
+        id: `addon-${Date.now()}`,
+        enabled: true,
+        type: newAddOn.type.trim() || "옵션",
+        name,
+        price: newAddOn.price || "0",
+      },
+    ]);
+    setNewAddOn({ type: "", name: "", price: "" });
+  };
+
+  const handleAddDrink = () => {
+    const name = newDrink.name.trim();
+    if (!name) return;
+    setDrinkList((prev) => [
+      ...prev,
+      {
+        id: `drink-${Date.now()}`,
+        enabled: true,
+        name,
+        price: newDrink.price || "0",
+      },
+    ]);
+    setNewDrink({ name: "", price: "" });
+  };
+
+  const handleEnterAdd = (event: KeyboardEvent<HTMLInputElement>, add: () => void) => {
+    if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    add();
+  };
+
   const handleDeleteAddOn = (id: string) => {
     if (confirm("삭제하시겠습니까?")) {
       setAddOnList((prev) => prev.filter((a) => a.id !== id));
@@ -717,6 +756,15 @@ function ProductEditView({
       return;
     }
 
+    const hasClassicAddons = addOnList.some(
+      (item) => item.enabled && (item.name === "3등급 호텔" || item.name === "도시락")
+    );
+
+    if (!allowedGradesForTheme.includes("클래식") && hasClassicAddons) {
+      setError(`${selectedTheme} 테마는 클래식 전용 옵션(3등급 호텔, 도시락)을 포함할 수 없습니다.`);
+      return;
+    }
+
     onSave({
       name,
       theme: selectedTheme,
@@ -745,7 +793,6 @@ function ProductEditView({
         </div>
 
         <form onSubmit={submit} className="space-y-5">
-          {/* =상품 기본 정보 */}
           <Panel title="상품 기본 정보">
             <div className="grid md:grid-cols-2">
               <InfoField label="상품명 *" full>
@@ -761,7 +808,26 @@ function ProductEditView({
                 <SelectField
                   defaultValue={selectedTheme}
                   name="theme"
-                  onChange={(e) => setSelectedTheme(e.target.value)}
+                  onChange={(e) => {
+                    const newThemeName = e.target.value;
+                    setSelectedTheme(newThemeName);
+
+                    const themeObj = themes.find((t) => t.name === newThemeName);
+                    const allowed = themeObj ? themeObj.allowedGrades : ["클래식"];
+
+                    if (!allowed.includes("클래식")) {
+                      setAddOnList((prev) =>
+                        prev.map((item) =>
+                          item.name === "3등급 호텔" || item.name === "도시락"
+                            ? { ...item, enabled: false }
+                            : item
+                        )
+                      );
+                      setTourGradesState((prev) =>
+                        prev.map((g) => (g.grade === "클래식" ? { ...g, checked: false } : g))
+                      );
+                    }
+                  }}
                 >
                   {themes.map((theme) => (
                     <option key={theme.id} value={theme.name}>{theme.name}</option>
@@ -923,6 +989,7 @@ function ProductEditView({
                 <input
                   value={newAddOn.type}
                   onChange={(e) => setNewAddOn({ ...newAddOn, type: e.target.value })}
+                  onKeyDown={(e) => handleEnterAdd(e, handleAddAddOn)}
                   placeholder="구분"
                   className="h-8 w-full p-1 text-xs border rounded"
                 />
@@ -930,25 +997,9 @@ function ProductEditView({
               <div className="flex items-center border-r border-[#dde4e8] px-2">
                 <input
                   value={newAddOn.name}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val.trim()) {
-                      setAddOnList((prev) => [
-                        ...prev,
-                        {
-                          id: `addon-${Date.now()}`,
-                          enabled: true,
-                          type: newAddOn.type || "옵션",
-                          name: val,
-                          price: newAddOn.price || "0",
-                        },
-                      ]);
-                      setNewAddOn({ type: "", name: "", price: "" });
-                    } else {
-                      setNewAddOn({ ...newAddOn, name: val });
-                    }
-                  }}
-                  placeholder="+ 새 옵션명 입력 시 자동 추가"
+                  onChange={(e) => setNewAddOn({ ...newAddOn, name: e.target.value })}
+                  onKeyDown={(e) => handleEnterAdd(e, handleAddAddOn)}
+                  placeholder="옵션명 입력 후 Enter 또는 추가"
                   className={fieldClass}
                 />
               </div>
@@ -959,8 +1010,14 @@ function ProductEditView({
                   placeholder="0"
                 />
               </div>
-              <div className="flex items-center justify-center text-xs text-gray-300">
-                -
+              <div className="flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={handleAddAddOn}
+                  className="h-8 rounded-md bg-[#1596b4] px-3 text-xs font-bold text-white hover:bg-[#117f99] transition"
+                >
+                  추가
+                </button>
               </div>
             </div>
           </Panel>
@@ -1034,24 +1091,9 @@ function ProductEditView({
               <div className="flex items-center border-r border-[#dde4e8] px-2">
                 <input
                   value={newDrink.name}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val.trim()) {
-                      setDrinkList((prev) => [
-                        ...prev,
-                        {
-                          id: `drink-${Date.now()}`,
-                          enabled: true,
-                          name: val,
-                          price: newDrink.price || "0",
-                        },
-                      ]);
-                      setNewDrink({ name: "", price: "" });
-                    } else {
-                      setNewDrink({ ...newDrink, name: val });
-                    }
-                  }}
-                  placeholder="+ 새 음료명 입력 시 추가"
+                  onChange={(e) => setNewDrink({ ...newDrink, name: e.target.value })}
+                  onKeyDown={(e) => handleEnterAdd(e, handleAddDrink)}
+                  placeholder="음료명 입력 후 Enter 또는 추가"
                   className={fieldClass}
                 />
               </div>
@@ -1062,8 +1104,14 @@ function ProductEditView({
                   placeholder="0"
                 />
               </div>
-              <div className="flex items-center justify-center text-xs text-gray-300">
-                -
+              <div className="flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={handleAddDrink}
+                  className="h-8 rounded-md bg-[#1596b4] px-3 text-xs font-bold text-white hover:bg-[#117f99] transition"
+                >
+                  추가
+                </button>
               </div>
             </div>
           </Panel>

@@ -344,33 +344,46 @@ function ReservationDetailView({
                 <DetailField label="예약일시">{draft.bookedAt}</DetailField>
                 <DetailField label="인원">{draft.people}명</DetailField>
                 <DetailField label="상태">
-                  <select
-                    value={draft.status}
-                    onChange={(event) => {
-                      setDraft((current) => ({
-                        ...current,
-                        status: event.target.value,
-                      }));
-                      setSaved(false);
-                    }}
-                    className="w-full appearance-none bg-transparent outline-none cursor-pointer"
-                  >
-                    {Array.from(new Set([draft.status, "확정", "확정 대기", "취소 완료"])).map((status) => (
-                      <option key={status} value={status}>{status}</option>
-                    ))}
-                  </select>
-                  <img src={assets.dropdown} alt="" />
+                  <div className="relative w-full max-w-[160px]">
+                    <select
+                      value={draft.status}
+                      onChange={(event) => {
+                        const nextStatus = event.target.value;
+                        const updated = {
+                          ...draft,
+                          status: nextStatus,
+                        };
+                        setDraft(updated);
+                        onSave(updated);
+                        setSaved(true);
+                      }}
+                      className={`h-9 w-full appearance-none rounded border px-3 pr-8 text-xs font-semibold outline-none cursor-pointer transition-colors ${
+                        draft.status === "확정"
+                          ? "border-[#1596b4] bg-[#eaf7f9] text-[#1596b4]"
+                          : draft.status === "취소 완료"
+                          ? "border-[#e02424] bg-[#fde8e8] text-[#e02424]"
+                          : "border-[#c8d2d8] bg-white text-[#17212b]"
+                      }`}
+                    >
+                      <option value="확정 대기">확정 대기</option>
+                      <option value="확정">확정</option>
+                      <option value="취소 완료">취소 완료</option>
+                    </select>
+                    <img
+                      src={assets.dropdown}
+                      alt=""
+                      className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 opacity-70"
+                    />
+                  </div>
                 </DetailField>
               </div>
             </DetailCard>
 
-            {/* 상품 및 선택 옵션 */}
             <DetailCard title="상품 및 선택 옵션" className="overflow-x-auto">
               <DetailField label="상품">{draft.product}</DetailField>
               <DetailField label="일정">{draft.schedule}</DetailField>
               
               <div className="min-w-[620px]">
-                {/* 헤더 열 */}
                 <div className="grid grid-cols-4 bg-[#c7e8ef]">
                   {["투어 등급", "숙소", "식사", "추가 음료"].map((header) => (
                     <div
@@ -382,7 +395,6 @@ function ReservationDetailView({
                   ))}
                 </div>
 
-                {/* 옵션 선택 행 */}
                 <div className="grid grid-cols-4">
                   {singleOptionFields.map((field) => (
                     <div
@@ -397,7 +409,6 @@ function ReservationDetailView({
                     </div>
                   ))}
 
-                  {/* 💡 추가 음료*/}
                   <div className="flex items-center justify-center gap-3 border-r border-b border-[#dde4e8] px-2 py-3.5">
                     <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
                       <input
@@ -421,7 +432,6 @@ function ReservationDetailView({
                 </div>
               </div>
 
-              {/* 기념품 */}
               <div className="flex items-center gap-3 p-[18px]">
                 <strong className="font-['42dot_Sans:Bold'] text-[13px] font-bold">
                   기념품
