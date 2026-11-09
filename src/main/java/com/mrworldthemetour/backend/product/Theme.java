@@ -1,5 +1,6 @@
 package com.mrworldthemetour.backend.product;
 
+import com.mrworldthemetour.backend.inventory.Item;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -33,6 +34,11 @@ public class Theme {
     @Column(name = "fixed_people")
     private Integer fixedPeople;
 
+    // [추가] 테마 기념품 (커플티, 인삼, 골프공, 스카프) - 예약 시 재고에서 인원 수만큼 배정
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "souvenir_item_id")
+    private Item souvenirItem;
+
     public Theme(String themeName, String description, String defaultVehicle,
                  TravelGrade minGrade, Integer fixedPeople) {
         this(themeName, description);
@@ -50,6 +56,11 @@ public class Theme {
                 ? null : defaultVehicle.strip();
         this.minGrade = minGrade;
         this.fixedPeople = fixedPeople;
+    }
+
+    // [추가]
+    public void changeSouvenirItem(Item item) {
+        this.souvenirItem = item;
     }
 
     public void validateReservationPeople(Integer people) {

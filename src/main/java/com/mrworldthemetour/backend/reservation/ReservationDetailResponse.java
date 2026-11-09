@@ -32,16 +32,20 @@ public record ReservationDetailResponse(
 ) {
     public record OptionResponse(
             OptionType type,
+            Long productOptionId, // [추가] 변경 화면에서 현재 선택값 표시용
             String name,
             Integer quantity,
-            Long amount
+            Long amount,
+            boolean isDefault     // [추가] 기본 포함 / 고객 변경 구분
     ) {
         public static OptionResponse from(ReservationOption option) {
             return new OptionResponse(
                     option.getOptionType(),
+                    option.getProductOptionId(),
                     option.getOptionName(),
                     option.getQuantity(),
-                    option.getExtraPrice()
+                    option.getExtraPrice(),
+                    option.isDefaultSelected()
             );
         }
     }

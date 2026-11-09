@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name="reservation")
+@Table(name = "reservation")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Reservation {
@@ -21,7 +21,7 @@ public class Reservation {
     @Column(name = "reservation_id")
     private Long id;
 
-    @Column(nullable = false,unique = true,length = 20)
+    @Column(nullable = false, unique = true, length = 20)
     private String reservationCode;
 
     @Column(nullable = false)
@@ -33,7 +33,13 @@ public class Reservation {
     @Column(nullable = false)
     private Long productGradeId;
 
-    private Long itemId;
+    // [수정] 배정된 기념품 물품 (기존 item_id 컬럼 그대로 사용)
+    @Column(name = "item_id")
+    private Long souvenirItemId;
+
+    // [추가] 실제 배정된 기념품 수량 (재고 부족 시 인원보다 적을 수 있음)
+    @Column(name = "souvenir_quantity")
+    private Integer souvenirQuantity;
 
     @Column(nullable = false)
     private Integer people;
@@ -66,18 +72,17 @@ public class Reservation {
     @Column(nullable = false)
     private LocalDateTime reservedAt;
 
-    @OneToMany(mappedBy = "reservation",cascade = CascadeType.ALL,orphanRemoval = true)
-    private List<ReservationOption> options=new ArrayList<>();
+    @OneToMany(mappedBy = "reservation", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ReservationOption> options = new ArrayList<>();
 
     @Builder
     private Reservation(String reservationCode, Long userId, Long productId, Long productGradeId,
-                        Long itemId,Integer people, String vehicle, Long baseAmount, Long optionAmount,
+                        Integer people, String vehicle, Long baseAmount, Long optionAmount,
                         Long discountAmount, Long finalAmount, String paymentMethod) {
         this.reservationCode = reservationCode;
         this.userId = userId;
         this.productId = productId;
         this.productGradeId = productGradeId;
-        this.itemId=itemId;
         this.people = people;
         this.vehicle = vehicle;
         this.baseAmount = baseAmount;
@@ -85,45 +90,85 @@ public class Reservation {
         this.discountAmount = discountAmount;
         this.finalAmount = finalAmount;
         this.paymentMethod = paymentMethod;
-        this.status =ReservationStatus.PENDING;
+        this.souvenirQuantity = 0;
+        this.status = ReservationStatus.PENDING;
         this.reservedAt = LocalDateTime.now();
     }
 
-    public void addOption(ReservationOption option){
+    public void addOption(ReservationOption option) {
         options.add(option);
         option.setReservation(this);
     }
 
-    public void cancel(){
-        if(status== ReservationStatus.CANCELED){
-            throw new IllegalStateException("이미 취소된 예약입니다.");
-        }
-        this.status= ReservationStatus.CANCELED;
+    public void clearOptions() {
+        options.clear();
     }
 
-    public void confirm(){
-        if(status==ReservationStatus.CANCELED){
-            throw new IllegalStateException("취소된 예약은 확정하지 못합니다.");
+    public void cancel() {
+        if (status == ReservationStatus.CANCELED) {
+            throw conflict("ALREADY_CANCELED", "이미 취소된 예약입니다.");
         }
-        this.status= ReservationStatus.CONFIRMED;
+        this.status = ReservationStatus.CANCELED;
     }
 
+    public void confirm() {
+        if (status == ReservationStatus.CANCELED) {
+            throw conflict("CANNOT_CONFIRM", "취소된 예약은 확정할 수 없습니다.");
+        }
+        this.status = ReservationStatus.CONFIRMED;
+    }
+
+    // [추가] 상품 인원이 최소 인원 밑으로 내려가면 다시 확정 대기
+    public void revertToPending() {
+        if (status == ReservationStatus.CANCELED) {
+            throw conflict("CANNOT_REVERT", "취소된 예약은 되돌릴 수 없습니다.");
+        }
+        this.status = ReservationStatus.PENDING;
+    }
+
+    // [수정] 확정 대기/확정 모두 변경 가능 (마감일 검사는 서비스에서)
     public void changeSelection(Long productGradeId, Integer people, String vehicle,
                                 Long baseAmount, Long optionAmount,
-                                Long discountAmount, Long finalAmount){
-        if(status!=ReservationStatus.PENDING){
-            throw new IllegalStateException("확정 대기 상태의 예약만 변경할 수 있습니다.");
+                                Long discountAmount, Long finalAmount) {
+        if (status == ReservationStatus.CANCELED) {
+            throw conflict("CANNOT_CHANGE", "취소된 예약은 변경할 수 없습니다.");
         }
-        this.productGradeId=productGradeId;
-        this.people=people;
-        this.vehicle=vehicle;
-        this.baseAmount=baseAmount;
-        this.optionAmount=optionAmount;
-        this.discountAmount=discountAmount;
-        this.finalAmount=finalAmount;
+        this.productGradeId = productGradeId;
+        this.people = people;
+        this.vehicle = vehicle;
+        this.baseAmount = baseAmount;
+        this.optionAmount = optionAmount;
+        this.discountAmount = discountAmount;
+        this.finalAmount = finalAmount;
     }
 
-    public void clearOptions(){
-        options.clear();
+    // [추가]
+    public void assignSouvenir(Long itemId, int quantity) {
+        this.souvenirItemId = itemId;
+        this.souvenirQuantity = quantity;
+    }
+
+    // [추가]
+    public int souvenirQuantityOrZero() {
+        return souvenirQuantity == null ? 0 : souvenirQuantity;
+    }
+
+    // [추가]
+    public void writeAdminMemo(String memo) {
+        this.adminMemo = (memo == null || memo.isBlank()) ? null : memo.strip();
+    }
+
+    // [추가] 예약 당시 등급 이름 (옵션 스냅샷의 GRADE 항목)
+    public String gradeName() {
+        for (ReservationOption o : options) {
+            if (o.getOptionType() == OptionType.GRADE) {
+                return o.getOptionName();
+            }
+        }
+        return null;
+    }
+
+    private static BusinessException conflict(String code, String message) {
+        return new BusinessException(HttpStatus.CONFLICT, code, message);
     }
 }

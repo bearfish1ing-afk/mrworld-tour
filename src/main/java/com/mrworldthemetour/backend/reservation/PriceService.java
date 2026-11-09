@@ -2,171 +2,161 @@ package com.mrworldthemetour.backend.reservation;
 
 import com.mrworldthemetour.backend.exception.BusinessException;
 import com.mrworldthemetour.backend.product.*;
+import com.mrworldthemetour.backend.reservation.PriceResponse.PriceItem;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.mrworldthemetour.backend.reservation.PriceResponse.PriceItem;
 
-import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PriceService {
+    private static final String PER_RESERVATION = "PER_RESERVATION";
+
     private final ProductRepository productRepository;
     private final ProductGradeRepository productGradeRepository;
     private final ProductOptionRepository productOptionRepository;
     private final CustomerLevelService customerLevelService;
 
-    //reservation 계산
-    public PriceResponse calculate(PriceRequest request,Long userId){
-        if(request.productId()==null || request.productGradeId()==null){
+    //예상 금액 계산
+    public PriceResponse calculate(PriceRequest request, Long userId) {
+        if (request.productId() == null || request.productGradeId() == null) {
             throw badRequest("REQUIRED_VALUE_MISSING", "상품과 등급을 선택해 주세요.");
         }
 
-        Product product=productRepository.findById(request.productId())
-                .orElseThrow(()->new BusinessException(HttpStatus.NOT_FOUND,"PRODUCT_NOT_FOUND", "존재하지 않는 상품입니다."));
+        Product product = productRepository.findById(request.productId())
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
+                        "PRODUCT_NOT_FOUND", "존재하지 않는 상품입니다."));
+        Theme theme = product.getTheme();
 
-        Optional<ThemeRule> themeRule = ThemeRule.fromThemeName(
-                product.getTheme() == null ? null : product.getTheme().getThemeName());
+        //테마 인원 규칙 (허니문 2인 전용)
+        int people = validatePeople(request.people(), theme);
 
-        //허니문 2인 전용
-        int people=validatePeople(request.people(),themeRule);
-
-        //테마 최소 등급인지
-        ProductGrade grade=productGradeRepository
+        //테마 최소 등급 (허니문, 효도는 그랜드 이상)
+        ProductGrade grade = productGradeRepository
                 .findByIdAndProduct_Id(request.productGradeId(), product.getId())
                 .orElseThrow(() -> badRequest("INVALID_GRADE", "해당 상품의 등급이 아닙니다."));
-        TourGrade tourGrade=TourGrade.from(grade.getGrade());
-
-        if(themeRule.isPresent() && tourGrade.compareTo(themeRule.get().getMinGrade())<0){
+        TravelGrade travelGrade = TravelGrade.from(grade.getGrade());
+        if (theme != null && !travelGrade.satisfies(theme.getMinGrade())) {
             throw badRequest("GRADE_NOT_ALLOWED",
-                    "이 테마는 " + themeRule.get().getMinGrade().getLabel() + " 이상만 선택할 수 있습니다.");
+                    "이 테마는 " + theme.getMinGrade().getLabel() + " 이상만 선택할 수 있습니다.");
         }
 
-        List<PriceItem> items = new ArrayList<>();
-        items.add(item(OptionType.GRADE, grade.getId(), tourGrade.getLabel(),
-                people, nz(grade.getExtraPrice())));
-
-        //옵션
-        List<ProductOption> options=productOptionRepository.findByProduct_IdOrderByOptionTypeAscIdAsc(product.getId());
-        Map<Long,ProductOption> optionMap=options.stream()
+        Map<Long, ProductOption> optionMap = productOptionRepository
+                .findByProduct_IdOrderByOptionTypeAscIdAsc(product.getId()).stream()
                 .collect(Collectors.toMap(ProductOption::getId, Function.identity()));
 
-        //호텔, 식당, 차량
-        addSingle(items, options, optionMap,request.hotelOptionId(),OptionType.HOTEL,defaultHotelName(tourGrade),people);
-        addSingle(items, options, optionMap, request.mealOptionId(), OptionType.MEAL, defaultMealName(tourGrade), people);
-        addSingle(items, options, optionMap, request.vehicleOptionId(), OptionType.VEHICLE, themeRule.map(ThemeRule::getDefaultVehicleName).orElse(null), people);
+        List<PriceItem> items = new ArrayList<>();
+        items.add(PriceItem.of(OptionType.GRADE, grade.getId(), travelGrade.getLabel(),
+                people, nz(grade.getExtraPrice()), Boolean.TRUE.equals(grade.getDefaultGrade())));
 
-        //음료
-        addDrinks(items, optionMap,request.drinks());
+        //호텔, 식사, 차량: 관리자가 DB에 지정한 기본 옵션 사용 (이름 하드코딩 X)
+        addSingle(items, optionMap, request.hotelOptionId(), ProductOptionType.HOTEL,
+                idOf(grade.getDefaultHotelOption()), people);
+        addSingle(items, optionMap, request.mealOptionId(), ProductOptionType.MEAL,
+                idOf(grade.getDefaultMealOption()), people);
+        addSingle(items, optionMap, request.vehicleOptionId(), ProductOptionType.VEHICLE,
+                idOf(product.getDefaultVehicleOption()), people);
+
+        //음료: 등급 기본 음료(프리미엄 샴페인 등) + 고객 추가 음료
+        addDefaultDrink(items, optionMap, idOf(grade.getDefaultDrinkOption()), people);
+        addDrinks(items, optionMap, request.drinks());
 
         //합계
-        long baseAmount=nz(product.getBasePrice())*people;
-        long optionAmount=items.stream().mapToLong(PriceItem::amount).sum();
-        CustomerLevel level=customerLevelService.levelCalculate(userId);
-        long discountAmount=level.discount(baseAmount+optionAmount);
-        long finalAmount=baseAmount+optionAmount-discountAmount;
+        long baseAmount = nz(product.getBasePrice()) * people;
+        long optionAmount = items.stream().mapToLong(PriceItem::amount).sum();
+        long subtotal = Math.max(baseAmount + optionAmount, 0L); //다운그레이드로 음수가 되지 않게
+        CustomerLevel level = customerLevelService.levelCalculate(userId);
+        long discountAmount = level.discount(subtotal);
+        long finalAmount = subtotal - discountAmount;
 
         return new PriceResponse(baseAmount, items, optionAmount, discountAmount, finalAmount);
     }
 
-    private int validatePeople(Integer people, Optional<ThemeRule> themeRule){
-        if(people==null || people<1){
+    private int validatePeople(Integer people, Theme theme) {
+        if (people == null || people < 1) {
             throw badRequest("INVALID_PEOPLE", "인원은 1명 이상이어야 합니다.");
         }
-        Integer fixed=themeRule.map(ThemeRule::getFixedPeople).orElse(null);
-        if (fixed != null && people != fixed) {
-            throw badRequest("INVALID_PEOPLE", "이 테마는 " + fixed + "인 전용 상품입니다.");
+        if (theme != null && theme.getFixedPeople() != null && !theme.getFixedPeople().equals(people)) {
+            throw badRequest("INVALID_PEOPLE", "이 테마는 " + theme.getFixedPeople() + "인 전용 상품입니다.");
         }
         return people;
     }
 
-    //호텔, 식사, 차량
-    private void addSingle(List<PriceItem> items, List<ProductOption> options,Map<Long,ProductOption> optionMap,Long optionId, OptionType type,String defaultName,int people){
-        ProductOption defaultOption=findDefault(options,type,defaultName);
-        ProductOption option;
-
-        if(optionId==null){
-            option=defaultOption;
-            if(option==null){
-                return;
-            }
-        }else{
-            option = optionMap.get(optionId);
-            if (option == null || !isType(option, type)) {
-                throw badRequest("INVALID_OPTION", "해당 상품의 " + type + " 옵션이 아닙니다.");
-            }
+    //호텔, 식사, 차량: 선택 안 하면 기본값, 바꾸면 기본값 대비 차액만 부과
+    private void addSingle(List<PriceItem> items, Map<Long, ProductOption> optionMap, Long selectedId,
+                           ProductOptionType type, Long defaultId, int people) {
+        ProductOption defaultOption = defaultId == null ? null : optionMap.get(defaultId);
+        if (defaultOption == null) {
+            throw new BusinessException(HttpStatus.CONFLICT, "DEFAULT_OPTION_MISSING",
+                    "상품의 기본 " + label(type) + " 옵션이 설정되지 않았습니다. 관리자에게 문의해 주세요.");
         }
 
-        long defaultPrice=defaultOption==null? 0L: nz(defaultOption.getExtraPrice());
-        long diff=nz(option.getExtraPrice())-defaultPrice;
+        ProductOption chosen = selectedId == null ? defaultOption : optionMap.get(selectedId);
+        if (chosen == null || chosen.getOptionType() != type) {
+            throw badRequest("INVALID_OPTION", "해당 상품의 " + label(type) + " 옵션이 아닙니다.");
+        }
 
-        items.add(item(type, option.getId(), option.getOptionName(), people, diff));
+        long diff = nz(chosen.getExtraPrice()) - nz(defaultOption.getExtraPrice());
+        int quantity = PER_RESERVATION.equals(chosen.getApplyRule()) ? 1 : people; //요금 규칙 반영
+        items.add(PriceItem.of(OptionType.valueOf(type.name()), chosen.getId(), chosen.getOptionName(),
+                quantity, diff, chosen.getId().equals(defaultId)));
     }
 
-    private ProductOption findDefault(List<ProductOption> options, OptionType type, String defaultName) {
-        if (defaultName == null) {
-            return null;
+    //등급 기본 음료 (0원, 기본 포함)
+    private void addDefaultDrink(List<PriceItem> items, Map<Long, ProductOption> optionMap,
+                                 Long defaultDrinkId, int people) {
+        if (defaultDrinkId == null) {
+            return;
         }
-        for (ProductOption o : options) {
-            if (isType(o, type) && defaultName.equals(o.getOptionName())) {
-                return o;
-            }
+        ProductOption drink = optionMap.get(defaultDrinkId);
+        if (drink != null) {
+            items.add(PriceItem.of(OptionType.DRINK, drink.getId(), drink.getOptionName(), people, 0L, true));
         }
-        return null;
     }
 
-    //음료
+    //추가 음료 (샴페인, 커피 등)
     private void addDrinks(List<PriceItem> items, Map<Long, ProductOption> optionMap,
                            List<PriceRequest.DrinkRequest> drinks) {
-        if(drinks==null)return;
-        Set<Long> seen=new HashSet<>();
-        for(PriceRequest.DrinkRequest drink:drinks){
-            if(drink==null || drink.optionId()==null){
+        if (drinks == null) {
+            return;
+        }
+        Set<Long> seen = new HashSet<>();
+        for (PriceRequest.DrinkRequest drink : drinks) {
+            if (drink == null || drink.optionId() == null) {
                 throw badRequest("INVALID_OPTION", "음료 옵션을 확인해 주세요.");
             }
-            if(!seen.add(drink.optionId())){
+            if (!seen.add(drink.optionId())) {
                 throw badRequest("DUPLICATE_DRINK", "같은 음료가 중복으로 선택되었습니다.");
             }
             if (drink.quantity() == null || drink.quantity() < 1) {
                 throw badRequest("INVALID_QUANTITY", "음료 수량은 1개 이상이어야 합니다.");
             }
             ProductOption option = optionMap.get(drink.optionId());
-            if (option == null || !isType(option, OptionType.DRINK)) {
+            if (option == null || option.getOptionType() != ProductOptionType.DRINK) {
                 throw badRequest("INVALID_OPTION", "해당 상품의 음료 옵션이 아닙니다.");
             }
-            items.add(item(OptionType.DRINK, option.getId(), option.getOptionName(),
-                    drink.quantity(), nz(option.getExtraPrice())));
+            items.add(PriceItem.of(OptionType.DRINK, option.getId(), option.getOptionName(),
+                    drink.quantity(), nz(option.getExtraPrice()), false));
         }
     }
 
-    private boolean isType(ProductOption option, OptionType type){
-        return option.getOptionType()!=null && type.name().equalsIgnoreCase(option.getOptionType().name());
+    private Long idOf(ProductOption option) {
+        return option == null ? null : option.getId(); //지연 로딩 프록시 초기화 없이 id만 사용
     }
 
-    private String defaultHotelName(TourGrade grade){
-        return switch (grade){
-            case CLASSIC -> "3등급 호텔";
-            case GRAND -> "4등급 호텔";
-            case PREMIUM -> "5등급 호텔";
+    private String label(ProductOptionType type) {
+        return switch (type) {
+            case HOTEL -> "숙소";
+            case MEAL -> "식사";
+            case VEHICLE -> "차량";
+            case DRINK -> "음료";
         };
-    }
-
-    private String defaultMealName(TourGrade grade){
-        return switch (grade){
-            case CLASSIC -> "도시락";
-            case GRAND -> "현지식 레스토랑";
-            case PREMIUM -> "고급 레스토랑";
-        };
-    }
-
-    private PriceItem item(OptionType type, Long sourceId, String name, int quantity, long unitPrice) {
-        return new PriceItem(type, sourceId, name, quantity, unitPrice, unitPrice * quantity);
     }
 
     private long nz(Long value) {

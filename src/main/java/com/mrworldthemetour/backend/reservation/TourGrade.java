@@ -1,26 +1,34 @@
-package com.mrworldthemetour.backend.reservation;
+package com.mrworldthemetour.backend.product;
 
 import com.mrworldthemetour.backend.exception.BusinessException;
-import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
-@Getter
-public enum TourGrade {
-    CLASSIC("클래식"),
-    GRAND("그랜드"),
-    PREMIUM("프리미엄");
+public enum TravelGrade {
+    CLASSIC(1, "클래식"),
+    GRAND(2, "그랜드"),
+    PREMIUM(3, "프리미엄");
 
+    private final int rank;
     private final String label;
 
-    TourGrade(String label){
-        this.label=label;
+    TravelGrade(int rank, String label) {
+        this.rank = rank;
+        this.label = label;
     }
 
-    public static TourGrade from(String value){
-        if(value!=null){
-            String v=value.trim();
-            for(TourGrade grade:values()){
-                if(grade.name().equalsIgnoreCase(v) || grade.label.equals(v)){
+    public String getLabel() {
+        return label;
+    }
+
+    public boolean satisfies(TravelGrade minimum) {
+        return minimum == null || rank >= minimum.rank;
+    }
+
+    public static TravelGrade from(String value) {
+        if (value != null) {
+            String v = value.trim();
+            for (TravelGrade grade : values()) {
+                if (grade.name().equalsIgnoreCase(v) || grade.label.equals(v)) {
                     return grade;
                 }
             }

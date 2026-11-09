@@ -282,6 +282,29 @@ public class SmsService implements SignupProofVerifier {
         verification.setConsumed(true);
     }
 
+    // 출발 확정, 관리자 안내 등 일반 문자 발송
+    public void sendText(String phoneNum, String text) {
+        Message message = new Message();
+        message.setFrom(senderNumber);
+        message.setTo(phoneNum.replace("-", ""));
+        message.setText(text);
+
+        try {
+            var response = messageService.send(message, null);
+            if (response == null
+                    || (response.getFailedMessageList() != null
+                    && !response.getFailedMessageList().isEmpty())) {
+                throw new IllegalStateException("SMS 발송 접수 실패");
+            }
+        } catch (Exception exception) {
+            throw error(
+                    HttpStatus.BAD_GATEWAY,
+                    "SMS_SEND_FAILED",
+                    "문자 발송에 실패했습니다. 잠시 후 다시 시도해 주세요."
+            );
+        }
+    }
+
     private String normalizePhone(String phoneNum) {
         if (phoneNum == null
                 || !phoneNum.matches("^010(?:\\d{8}|-\\d{4}-\\d{4})$")) {

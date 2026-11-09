@@ -227,6 +227,12 @@ public class SecurityConfig {
                                 "/products/{productId}"
                         ).permitAll()
 
+                        // 로그인 전에도 상품 상세에서 예상 금액 확인 가능
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/reservations/price"
+                        ).permitAll()
+
                         .anyRequest().authenticated()
                 )
 

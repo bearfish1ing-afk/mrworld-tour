@@ -73,7 +73,8 @@ public final class ProductDto {
             Long extraPrice,
             Boolean defaultGrade,
             Long defaultHotelOptionId,
-            Long defaultMealOptionId
+            Long defaultMealOptionId,
+            Long defaultDrinkOptionId // [추가]
     ) {
         public static GradeResponse from(ProductGrade grade) {
             return new GradeResponse(
@@ -82,7 +83,8 @@ public final class ProductDto {
                     grade.getExtraPrice(),
                     grade.getDefaultGrade(),
                     grade.getDefaultHotelOption() == null ? null : grade.getDefaultHotelOption().getId(),
-                    grade.getDefaultMealOption() == null ? null : grade.getDefaultMealOption().getId()
+                    grade.getDefaultMealOption() == null ? null : grade.getDefaultMealOption().getId(),
+                    grade.getDefaultDrinkOption() == null ? null : grade.getDefaultDrinkOption().getId()
             );
         }
     }
@@ -149,7 +151,9 @@ public final class ProductDto {
             @jakarta.validation.constraints.NotNull
             @jakarta.validation.constraints.PositiveOrZero Integer hotelOptionIndex,
             @jakarta.validation.constraints.NotNull
-            @jakarta.validation.constraints.PositiveOrZero Integer mealOptionIndex
+            @jakarta.validation.constraints.PositiveOrZero Integer mealOptionIndex,
+            // [추가] 등급 기본 음료 (선택, 예: 프리미엄 샴페인)
+            @jakarta.validation.constraints.PositiveOrZero Integer drinkOptionIndex
     ) {}
 
     // 옵션 인덱스는 이 요청의 options 배열에서 0부터 시작하는 위치
@@ -181,7 +185,18 @@ public final class ProductDto {
 
     public record DefaultGradeOptionsRequest(
             @jakarta.validation.constraints.NotNull Long hotelOptionId,
-            @jakarta.validation.constraints.NotNull Long mealOptionId
+            @jakarta.validation.constraints.NotNull Long mealOptionId,
+            Long drinkOptionId // [추가] null이면 기본 음료 없음
+    ) {}
+
+    // [추가] 관리자 판매 상태 변경
+    public record StatusChangeRequest(
+            @jakarta.validation.constraints.NotNull ProductStatus status
+    ) {}
+
+    // [추가] 테마 기념품 연결 (itemId가 null이면 연결 해제)
+    public record SouvenirItemRequest(
+            Long itemId
     ) {}
 
     public record PageResponse(

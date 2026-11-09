@@ -151,11 +151,12 @@ public class Product {
         this.status = ProductStatus.CANCELED;
     }
 
-
+    // [추가] 관리자 판매 상태 변경
+    // CONFIRMED는 인원 충족 시 자동으로만, CANCELED는 예약 일괄 취소가 필요하므로 DepartureService로만 전환
+    public void changeStatus(ProductStatus status) {
+        if (status == null || status == ProductStatus.CONFIRMED || status == ProductStatus.CANCELED) {
+            throw new IllegalArgumentException("변경할 수 없는 상품 상태입니다.");
+        }
+        this.status = status;
+    }
 }
-
-/*
-TODO:
-상품 조회 컨트롤러를 구현할 때 실제 경로에 맞춰 **상품 목록·상세 GET 요청만 permitAll()**로 추가해야 합니다.
-현재 명세의 비회원 조회와는 아직 맞지 않습니다. -> 완료
- */

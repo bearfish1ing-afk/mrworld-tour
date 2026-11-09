@@ -59,6 +59,31 @@ public class StockHistory {
         return history;
     } //item.recieve(quantity) 이후에 호출
 
+    // [추가] item.allocate() 이후 호출
+    public static StockHistory allocate(Item item, Long reservationId, int quantity, String reason) {
+        return of(item, reservationId, StockChangeType.ALLOCATE, quantity, reason);
+    }
+
+    // [추가] item.restore() 이후 호출
+    public static StockHistory restore(Item item, Long reservationId, int quantity, String reason) {
+        return of(item, reservationId, StockChangeType.RESTORE, quantity, reason);
+    }
+
+    private static StockHistory of(Item item, Long reservationId, StockChangeType type,
+                                   int quantity, String reason) {
+        if (item == null || quantity <= 0) {
+            throw new IllegalArgumentException("물품과 양수 수량이 필요합니다.");
+        }
+        StockHistory history = new StockHistory();
+        history.item = item;
+        history.reservationId = reservationId;
+        history.type = type;
+        history.quantity = quantity;
+        history.stockAfter = item.getCurrentAmount();
+        history.reason = reason;
+        return history;
+    }
+
     @PrePersist
     private void prePersist() {
         this.createdAt = LocalDateTime.now();

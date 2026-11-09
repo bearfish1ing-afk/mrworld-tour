@@ -1,6 +1,8 @@
 package com.mrworldthemetour.backend.product;
 
 import com.mrworldthemetour.backend.exception.BusinessException;
+import com.mrworldthemetour.backend.inventory.Item;
+import com.mrworldthemetour.backend.inventory.ItemRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -25,6 +27,7 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final ProductGradeRepository productGradeRepository;
     private final ProductOptionRepository productOptionRepository;
+    private final ItemRepository itemRepository; // [추가] 테마 기념품 연결용
 
     public ProductDto.PageResponse getProducts(
             Long themeId,
@@ -120,6 +123,23 @@ public class ProductService {
         );
     } //단일 여행 상품 조회
 
+    // [추가] 관리자 상품 목록 (DRAFT 등 비공개 상태 포함)
+    public ProductDto.PageResponse getProductsForAdmin(int page, int size) {
+        if (page < 0 || size < 1 || size > 100) {
+            throw invalidSearch("페이지는 0 이상, 페이지 크기는 1~100이어야 합니다.");
+        }
+        Page<Product> result = productRepository.findAll(
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id")));
+
+        return new ProductDto.PageResponse(
+                result.getContent().stream().map(ProductDto.SummaryResponse::from).toList(),
+                result.getNumber(),
+                result.getSize(),
+                result.getTotalElements(),
+                result.getTotalPages()
+        );
+    }
+
     @Transactional
     public ProductDto.OptionResponse addOption(Long productId, ProductDto.OptionCreateRequest request) {
         Product product = requireProduct(productId);
@@ -152,8 +172,10 @@ public class ProductService {
         }
         Theme theme = themeRepository.findById(request.themeId())
                 .orElseThrow(() -> invalidSearch("존재하지 않는 테마입니다."));
-        int vehicleIndex = resolveDefaultVehicle(request, theme);
-        requireOption(request, vehicleIndex, ProductOptionType.VEHICLE);
+
+        // [수정] 테마 기본 차량명과 같은 옵션이 없으면 예외 대신 null → 아래에서 0원 기본 차량 자동 생성
+        Integer vehicleIndex = findDefaultVehicleIndex(request, theme);
+
         if (theme.getFixedPeople() != null && theme.getFixedPeople() > request.maxPeople()) {
             throw invalidSearch("상품 정원은 테마의 고정 예약 인원 이상이어야 합니다.");
         }
@@ -172,32 +194,53 @@ public class ProductService {
             }
             requireOption(request, grade.hotelOptionIndex(), ProductOptionType.HOTEL);
             requireOption(request, grade.mealOptionIndex(), ProductOptionType.MEAL);
+            if (grade.drinkOptionIndex() != null) {
+                requireOption(request, grade.drinkOptionIndex(), ProductOptionType.DRINK);
+            }
         }
+
         Product product = productRepository.save(new Product(theme, request.productCode(),
                 request.title(), request.country(), request.duration(), request.description(),
                 request.basePrice(), request.status(), request.departureDate(), request.returnDate(),
                 request.deadline(), request.maxPeople(), request.minPeople()));
+
         java.util.ArrayList<ProductOption> options = new java.util.ArrayList<>();
         for (var option : request.options()) {
             Long id = addOption(product.getId(), option).id();
             options.add(productOptionRepository.findById(id).orElseThrow());
         }
-        product.changeDefaultVehicleOption(options.get(vehicleIndex));
+
+        // [수정] 기본 차량 지정 (관리자 화면에 차량 입력이 없어도 상품 등록 가능)
+        if (vehicleIndex != null) {
+            product.changeDefaultVehicleOption(options.get(vehicleIndex));
+        } else {
+            String vehicleName = theme.getDefaultVehicle() != null ? theme.getDefaultVehicle() : "기본 차량";
+            ProductOption vehicle = productOptionRepository.save(new ProductOption(
+                    product, ProductOptionType.VEHICLE, vehicleName, 0L, "PER_RESERVATION"));
+            product.changeDefaultVehicleOption(vehicle);
+        }
+
         for (var input : request.grades()) {
             ProductGrade grade = new ProductGrade(product, input.grade(), input.extraPrice(), input.defaultGrade());
             grade.changeDefaultOptions(options.get(input.hotelOptionIndex()), options.get(input.mealOptionIndex()));
+            if (input.drinkOptionIndex() != null) {
+                grade.changeDefaultDrink(options.get(input.drinkOptionIndex()));
+            }
             productGradeRepository.save(grade);
         }
         productRepository.flush();
         return product.getId();
     } //여행 상품 생성
 
-    private int resolveDefaultVehicle(ProductDto.CreateRequest request, Theme theme) {
+    // [수정] 기존 resolveDefaultVehicle 대체: 일치하는 차량 옵션이 없으면 null 반환
+    private Integer findDefaultVehicleIndex(ProductDto.CreateRequest request, Theme theme) {
+        if (theme.getDefaultVehicle() == null) {
+            return null;
+        }
         Integer matched = null;
         for (int i = 0; i < request.options().size(); i++) {
             var option = request.options().get(i);
             if (option.optionType() == ProductOptionType.VEHICLE
-                    && theme.getDefaultVehicle() != null
                     && theme.getDefaultVehicle().equals(option.optionName().strip())) {
                 if (matched != null) {
                     throw invalidSearch("테마 기본 차량명과 일치하는 차량 옵션은 하나만 등록해 주세요.");
@@ -205,11 +248,8 @@ public class ProductService {
                 matched = i;
             }
         }
-        if (matched == null) {
-            throw invalidSearch("테마 기본 차량명이 설정되어 있고, 일치하는 차량 옵션이 등록되어 있어야 합니다.");
-        }
         return matched;
-    } //option에서 테마 기본 차량명과 일치하는 것 찾아 인덱스 반환 (차량 옵션 변경 시 추가 비용 발생하는 것 구현하기 위해 필요)
+    } //option에서 테마 기본 차량명과 일치하는 것 찾아 인덱스 반환
 
     @Transactional
     public void changeGradeDefaults(Long productId, Long gradeId, ProductDto.DefaultGradeOptionsRequest request) {
@@ -223,7 +263,39 @@ public class ProductService {
             throw invalidSearch("호텔 및 식사 옵션 유형을 확인해 주세요.");
         }
         grade.changeDefaultOptions(hotel, meal);
+
+        // [추가] 기본 음료
+        ProductOption drink = null;
+        if (request.drinkOptionId() != null) {
+            drink = productOptionRepository.findByIdAndProduct_Id(request.drinkOptionId(), productId)
+                    .filter(o -> o.getOptionType() == ProductOptionType.DRINK)
+                    .orElseThrow(() -> invalidSearch("해당 상품의 음료 옵션이 아닙니다."));
+        }
+        grade.changeDefaultDrink(drink);
     } //개별 여행상품의 등급별 기본 옵션 지정
+
+    // [추가] 관리자 판매 상태 변경 (판매 시작, 판매 중지 등)
+    @Transactional
+    public void changeStatus(Long productId, ProductStatus status) {
+        try {
+            requireProduct(productId).changeStatus(status);
+        } catch (IllegalArgumentException exception) {
+            throw invalidSearch(exception.getMessage());
+        }
+    }
+
+    // [추가] 테마 기념품 연결
+    @Transactional
+    public void changeThemeSouvenir(Long themeId, Long itemId) {
+        Theme theme = themeRepository.findById(themeId)
+                .orElseThrow(() -> invalidSearch("존재하지 않는 테마입니다."));
+        Item item = null;
+        if (itemId != null) {
+            item = itemRepository.findById(itemId)
+                    .orElseThrow(() -> invalidSearch("존재하지 않는 물품입니다."));
+        }
+        theme.changeSouvenirItem(item);
+    }
 
     private Product requireProduct(Long productId) {
         return productRepository.findById(productId)
