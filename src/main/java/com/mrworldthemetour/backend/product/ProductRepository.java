@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.Collection;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
@@ -17,7 +18,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("""
             SELECT p
             FROM Product p
-            WHERE p.status = :status
+            WHERE p.status IN :statuses
               AND p.deadline > :now
               AND (:themeId IS NULL OR p.theme.id = :themeId)
               AND (:departureFrom IS NULL
@@ -35,9 +36,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                     OR LOWER(p.description) LIKE
                        LOWER(CONCAT('%', :keyword, '%')) ESCAPE '!'
                   )
-            """)
+            """) //검색에 와일드카드 활용
     Page<Product> search(
-            @Param("status") String status,
+            @Param("statuses") Collection<ProductStatus> statuses,
             @Param("now") LocalDateTime now,
             @Param("themeId") Long themeId,
             @Param("departureFrom") LocalDate departureFrom,
@@ -48,17 +49,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             Pageable pageable
     );
 
+    @EntityGraph(attributePaths = "theme")
+    Optional<Product> findByIdAndStatusIn(Long id, Collection<ProductStatus> statuses);
+
     @Override
     @EntityGraph(attributePaths = "theme")
     Optional<Product> findById(Long id);
 }
-
-/*
-ProductService에서 문자열 변환 필요 :
-
-keyword = keyword.strip()
-        .replace("!", "!!")
-        .replace("%", "!%")
-        .replace("_", "!_");
-
- */

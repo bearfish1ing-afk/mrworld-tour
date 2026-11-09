@@ -23,6 +23,20 @@ public class Product {
     @JoinColumn(name = "theme_id")
     private Theme theme;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "default_vehicle_option_id")
+    private ProductOption defaultVehicleOption;
+
+    public void changeDefaultVehicleOption(ProductOption option) {
+        if (option == null || getId() == null || option.getProduct() == null
+                || !getId().equals(option.getProduct().getId())
+                || option.getOptionType() != ProductOptionType.VEHICLE) {
+            throw new IllegalArgumentException("해당 상품의 차량 옵션만 기본 교통수단으로 지정할 수 있습니다.");
+        }
+        this.defaultVehicleOption = option;
+    }
+
+
     @Column(name = "product_code", length = 30)
     private String productCode;
 
@@ -41,8 +55,9 @@ public class Product {
     @Column(name = "base_price")
     private Long basePrice;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20)
-    private String status;
+    private ProductStatus status;
 
     @Column(name = "departure_date")
     private LocalDate departureDate;
@@ -76,7 +91,7 @@ public class Product {
             String duration,
             String description,
             Long basePrice,
-            String status,
+            ProductStatus status,
             LocalDate departureDate,
             LocalDate returnDate,
             LocalDateTime deadline,
@@ -90,7 +105,7 @@ public class Product {
         this.duration = duration;
         this.description = description;
         this.basePrice = basePrice;
-        this.status = status;
+        this.status = java.util.Objects.requireNonNull(status, "상품 상태가 필요합니다.");
         this.departureDate = departureDate;
         this.returnDate = returnDate;
         this.deadline = deadline;
@@ -111,14 +126,36 @@ public class Product {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public void changePeople(int people){
-        int current=this.currentPeople==null? 0:this.currentPeople;
-        this.currentPeople=current+people;
+    // 예약 신청,변경,취소 시 신청 인원 변경 (양수: 증가, 음수: 감소)
+    public void changePeople(int delta) {
+        int current = this.currentPeople == null ? 0 : this.currentPeople;
+        this.currentPeople = Math.max(current + delta, 0);
     }
+
+    // 신청 인원이 최소 인원 이상이 되면 출발 확정
+    public void confirmDeparture() {
+        if (this.status == ProductStatus.RECRUITING) {
+            this.status = ProductStatus.CONFIRMED;
+        }
+    }
+
+    // 취소로 최소 인원 밑이 되면 다시 모집 중
+    public void reopenRecruiting() {
+        if (this.status == ProductStatus.CONFIRMED) {
+            this.status = ProductStatus.RECRUITING;
+        }
+    }
+
+    // 모집 마감일까지 최소 인원 미달이면 출발 취소
+    public void cancelDeparture() {
+        this.status = ProductStatus.CANCELED;
+    }
+
+
 }
 
 /*
 TODO:
 상품 조회 컨트롤러를 구현할 때 실제 경로에 맞춰 **상품 목록·상세 GET 요청만 permitAll()**로 추가해야 합니다.
-현재 명세의 비회원 조회와는 아직 맞지 않습니다.
+현재 명세의 비회원 조회와는 아직 맞지 않습니다. -> 완료
  */
