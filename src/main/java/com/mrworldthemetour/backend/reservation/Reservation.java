@@ -33,11 +33,11 @@ public class Reservation {
     @Column(nullable = false)
     private Long productGradeId;
 
-    // [수정] 배정된 기념품 물품 (기존 item_id 컬럼 그대로 사용)
+    //배정된 기념품 물품
     @Column(name = "item_id")
     private Long souvenirItemId;
 
-    // [추가] 실제 배정된 기념품 수량 (재고 부족 시 인원보다 적을 수 있음)
+    //실제 배정된 기념품 수량
     @Column(name = "souvenir_quantity")
     private Integer souvenirQuantity;
 
@@ -118,7 +118,7 @@ public class Reservation {
         this.status = ReservationStatus.CONFIRMED;
     }
 
-    // [추가] 상품 인원이 최소 인원 밑으로 내려가면 다시 확정 대기
+    //상품 인원이 최소 인원 밑으로 내려가면 다시 확정 대기
     public void revertToPending() {
         if (status == ReservationStatus.CANCELED) {
             throw conflict("CANNOT_REVERT", "취소된 예약은 되돌릴 수 없습니다.");
@@ -126,7 +126,7 @@ public class Reservation {
         this.status = ReservationStatus.PENDING;
     }
 
-    // [수정] 확정 대기/확정 모두 변경 가능 (마감일 검사는 서비스에서)
+    //확정 대기/확정 모두 변경 가능 (마감일 검사는 서비스에서)
     public void changeSelection(Long productGradeId, Integer people, String vehicle,
                                 Long baseAmount, Long optionAmount,
                                 Long discountAmount, Long finalAmount) {
@@ -141,24 +141,20 @@ public class Reservation {
         this.discountAmount = discountAmount;
         this.finalAmount = finalAmount;
     }
-
-    // [추가]
     public void assignSouvenir(Long itemId, int quantity) {
         this.souvenirItemId = itemId;
         this.souvenirQuantity = quantity;
     }
 
-    // [추가]
     public int souvenirQuantityOrZero() {
         return souvenirQuantity == null ? 0 : souvenirQuantity;
     }
 
-    // [추가]
     public void writeAdminMemo(String memo) {
         this.adminMemo = (memo == null || memo.isBlank()) ? null : memo.strip();
     }
 
-    // [추가] 예약 당시 등급 이름 (옵션 스냅샷의 GRADE 항목)
+    // 예약 당시 등급 이름
     public String gradeName() {
         for (ReservationOption o : options) {
             if (o.getOptionType() == OptionType.GRADE) {

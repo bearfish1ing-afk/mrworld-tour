@@ -32,11 +32,11 @@ public record ReservationDetailResponse(
 ) {
     public record OptionResponse(
             OptionType type,
-            Long productOptionId, // [추가] 변경 화면에서 현재 선택값 표시용
+            Long productOptionId,
             String name,
             Integer quantity,
             Long amount,
-            boolean isDefault     // [추가] 기본 포함 / 고객 변경 구분
+            boolean isDefault
     ) {
         public static OptionResponse from(ReservationOption option) {
             return new OptionResponse(

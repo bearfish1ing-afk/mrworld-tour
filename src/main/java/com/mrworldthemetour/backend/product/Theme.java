@@ -23,7 +23,7 @@ public class Theme {
     @Column(name = "description", length = 255)
     private String description;
 
-    // 기본 차량 옵션명. 상품 생성 시 이름이 일치하는 차량 옵션을 기본값으로 연결한다.
+    // 기본 차량 옵션명 상품 생성 시 이름이 일치하는 차량 옵션을 기본값으로 연결한다.
     @Column(name = "default_vehicle", length = 100)
     private String defaultVehicle;
 
@@ -34,7 +34,7 @@ public class Theme {
     @Column(name = "fixed_people")
     private Integer fixedPeople;
 
-    // [추가] 테마 기념품 (커플티, 인삼, 골프공, 스카프) - 예약 시 재고에서 인원 수만큼 배정
+    //테마 기념품 (커플티, 인삼, 골프공, 스카프) - 예약 시 재고에서 인원 수만큼 배정
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "souvenir_item_id")
     private Item souvenirItem;
@@ -58,7 +58,7 @@ public class Theme {
         this.fixedPeople = fixedPeople;
     }
 
-    // [추가]
+
     public void changeSouvenirItem(Item item) {
         this.souvenirItem = item;
     }

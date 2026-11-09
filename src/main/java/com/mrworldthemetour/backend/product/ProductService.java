@@ -19,7 +19,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ProductService {
-    //기본값 : 모집 중인 상태
+    //모집 중인 상태
     private static final List<ProductStatus> PUBLIC_STATUSES = List.of(
             ProductStatus.RECRUITING, ProductStatus.CONFIRMED);
 
@@ -27,7 +27,7 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final ProductGradeRepository productGradeRepository;
     private final ProductOptionRepository productOptionRepository;
-    private final ItemRepository itemRepository; // [추가] 테마 기념품 연결용
+    private final ItemRepository itemRepository; // 테마 기념품 연결용
 
     public ProductDto.PageResponse getProducts(
             Long themeId,

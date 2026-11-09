@@ -2,6 +2,7 @@ package com.mrworldthemetour.backend.reservation;
 
 import com.mrworldthemetour.backend.exception.BusinessException;
 import com.mrworldthemetour.backend.product.Product;
+import com.mrworldthemetour.backend.product.ProductGradeRepository;
 import com.mrworldthemetour.backend.product.ProductRepository;
 import com.mrworldthemetour.backend.product.ProductStatus;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,6 @@ public class ReservationService {
     private static final int CODE_LENGTH = 5;
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    // [수정] Product.ProductStatus → ProductStatus (컴파일 오류 수정)
     // 모집 중, 출발 확정 후에도 정원/마감 전이면 예약 가능
     private static final Set<ProductStatus> RESERVABLE =
             EnumSet.of(ProductStatus.RECRUITING, ProductStatus.CONFIRMED);
@@ -30,8 +30,9 @@ public class ReservationService {
     private final PriceService priceService;
     private final DepartureService departureService;
     private final SouvenirService souvenirService;
+    private ProductGradeRepository productGradeRepository;
 
-    // ===== 예약 신청 =====
+    //예약 신청
     @Transactional
     public ReservationCreateResponse create(Long userId, ReservationCreateRequest request) {
         if (request.productId() == null) {
@@ -69,7 +70,7 @@ public class ReservationService {
         return toResponse(saved);
     }
 
-    // ===== 예약 변경 (고객) =====
+    //예약 변경 고객
     @Transactional
     public ReservationCreateResponse change(Long userId, Long reservationId, ReservationChangeRequest request) {
         Reservation reservation = findMyReservation(userId, reservationId);
@@ -78,8 +79,7 @@ public class ReservationService {
         return applyChange(reservation, product, request);
     }
 
-    // 고객/관리자 공통 변경 로직 (관리자는 마감일 검사 없이 호출)
-    // [수정] 확정 대기뿐 아니라 출발 확정 후에도 변경 가능
+    // 고객/관리자 공통 변경 로직
     @Transactional
     public ReservationCreateResponse applyChange(Reservation reservation, Product product,
                                                  ReservationChangeRequest request) {
@@ -111,7 +111,7 @@ public class ReservationService {
         return toResponse(reservation);
     }
 
-    // ===== 예약 취소 (고객) =====
+    //예약 취소 고객
     @Transactional
     public void cancel(Long userId, Long reservationId) {
         Reservation reservation = findMyReservation(userId, reservationId);
@@ -129,7 +129,7 @@ public class ReservationService {
         departureService.reevaluate(product);                       //최소 인원 밑이면 다시 모집 중
     }
 
-    // ===== 조회 =====
+
     //내 예약 목록(로그인 팝업용, 최근 순)
     @Transactional(readOnly = true)
     public List<ReservationListResponse> getMyReservation(Long userId) {
@@ -177,7 +177,6 @@ public class ReservationService {
         );
     }
 
-    // ===== 내부 =====
     private PriceRequest mergeWithCurrent(Reservation r, ReservationChangeRequest req, int people) {
         Long gradeId = req.productGradeId() != null ? req.productGradeId() : r.getProductGradeId();
         boolean gradeChanged = !gradeId.equals(r.getProductGradeId());
@@ -189,11 +188,11 @@ public class ReservationService {
                 req.hotelOptionId() != null ? req.hotelOptionId() : keepCustomized(r, OptionType.HOTEL, gradeChanged),
                 req.mealOptionId() != null ? req.mealOptionId() : keepCustomized(r, OptionType.MEAL, gradeChanged),
                 req.vehicleOptionId() != null ? req.vehicleOptionId() : keepCustomized(r, OptionType.VEHICLE, false),
-                req.drinks() != null ? req.drinks() : currentExtraDrinks(r)
+                req.drinks() != null ? req.drinks() : currentExtraDrinks(r, gradeChanged ? gradeId : null) // [수정]
         );
     }
 
-    // 고객이 직접 바꾼 옵션이면 유지, 기본값이었으면 null → 등급의 기본값 적용
+    // 고객이 직접 바꾼 옵션이면 유지
     // 등급이 바뀌면 호텔/식사는 새 등급 기본값으로 초기화
     private Long keepCustomized(Reservation r, OptionType type, boolean resetOnGradeChange) {
         if (resetOnGradeChange) {
@@ -206,15 +205,21 @@ public class ReservationService {
                 .orElse(null);
     }
 
-    private List<PriceRequest.DrinkRequest> currentExtraDrinks(Reservation r) {
+    // 등급이 바뀌었으면 새 등급의 기본 음료와 같은 것은 제외 (예: 그랜드+샴페인 추가 → 프리미엄: 샴페인 중복 결제 방지)
+    private List<PriceRequest.DrinkRequest> currentExtraDrinks(Reservation r, Long newGradeId) {
+        Long newDefaultDrinkId = newGradeId == null ? null
+                : productGradeRepository.findByIdAndProduct_Id(newGradeId, r.getProductId())
+                .map(g -> g.getDefaultDrinkOption() == null ? null : g.getDefaultDrinkOption().getId())
+                .orElse(null);
+
         return r.getOptions().stream()
                 .filter(o -> o.getOptionType() == OptionType.DRINK && !o.isDefaultSelected())
+                .filter(o -> !o.getProductOptionId().equals(newDefaultDrinkId))
                 .map(o -> new PriceRequest.DrinkRequest(o.getProductOptionId(), o.getQuantity()))
                 .toList();
     }
 
     private void validateReservable(Product product, Integer people) {
-        // [수정] equals → contains (기존에는 항상 false라 모든 예약이 거절됨)
         if (!RESERVABLE.contains(product.getStatus())) {
             throw new BusinessException(HttpStatus.CONFLICT,
                     "PRODUCT_NOT_RESERVABLE", "판매 중인 상품이 아닙니다.");
@@ -260,7 +265,6 @@ public class ReservationService {
                 .map(PriceResponse.PriceItem::name).findFirst().orElse(null);
     }
 
-    //옵션 스냅샷 교체
     private void replaceOptions(Reservation reservation, PriceResponse price) {
         reservation.clearOptions();
         for (PriceResponse.PriceItem item : price.items()) {

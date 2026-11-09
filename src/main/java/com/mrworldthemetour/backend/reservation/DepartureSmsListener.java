@@ -16,8 +16,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-// [신규] 출발 확정 / 출발 취소 문자 발송
-// 커밋된 뒤에만 발송 (롤백됐는데 문자가 나가는 것 방지)
+// 출발 확정 / 출발 취소 문자 발송
 @Slf4j
 @Component
 @RequiredArgsConstructor

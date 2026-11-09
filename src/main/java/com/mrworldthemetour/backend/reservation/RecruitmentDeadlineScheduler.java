@@ -10,9 +10,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.util.List;
 
-//  모집 마감 스케줄러
-// 마감일이 지났는데 아직 RECRUITING(= 최소 인원 미달)인 상품은 출발 취소 + 예약 일괄 취소 + 문자
-// (최소 인원을 채운 상품은 이미 CONFIRMED라서 대상이 아님)
+//마감일이 지났는데 최소 인원 미달인 상품은 출발 취소 + 예약 일괄 취소 + 문자
 @Slf4j
 @Component
 @RequiredArgsConstructor

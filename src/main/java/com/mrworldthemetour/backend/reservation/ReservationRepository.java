@@ -20,10 +20,10 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     //예약 목록 (최근 순)
     List<Reservation> findByUserIdOrderByReservedAtDesc(Long userId);
 
-    // [추가] 출발 확정 / 재모집 시 상품의 예약들
+    //출발 확정 / 재모집 시 상품의 예약들
     List<Reservation> findByProductIdAndStatus(Long productId, ReservationStatus status);
 
-    // [추가] 출발 취소 시 남은(취소 안 된) 예약 일괄 조회
+    //출발 취소 시 남은(취소 안 된) 예약 일괄 조회
     List<Reservation> findByProductIdAndStatusIn(Long productId, Collection<ReservationStatus> statuses);
 
     //단골 할인: 최근 1년 확정 금액 합계
@@ -33,7 +33,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
                    @Param("status") ReservationStatus status,
                    @Param("from") LocalDateTime from);
 
-    // [추가] 관리자 예약 검색
+    // 관리자 예약 검색
     @Query("""
             select r from Reservation r
             where (:productId is null or r.productId = :productId)

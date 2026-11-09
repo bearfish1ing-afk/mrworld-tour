@@ -74,7 +74,7 @@ public final class ProductDto {
             Boolean defaultGrade,
             Long defaultHotelOptionId,
             Long defaultMealOptionId,
-            Long defaultDrinkOptionId // [추가]
+            Long defaultDrinkOptionId //레스토랑 음료(샴페인같은 경우 처리)
     ) {
         public static GradeResponse from(ProductGrade grade) {
             return new GradeResponse(
@@ -152,7 +152,7 @@ public final class ProductDto {
             @jakarta.validation.constraints.PositiveOrZero Integer hotelOptionIndex,
             @jakarta.validation.constraints.NotNull
             @jakarta.validation.constraints.PositiveOrZero Integer mealOptionIndex,
-            // [추가] 등급 기본 음료 (선택, 예: 프리미엄 샴페인)
+            //등급 기본 음료 (선택, 예: 프리미엄 샴페인)
             @jakarta.validation.constraints.PositiveOrZero Integer drinkOptionIndex
     ) {}
 
@@ -186,15 +186,15 @@ public final class ProductDto {
     public record DefaultGradeOptionsRequest(
             @jakarta.validation.constraints.NotNull Long hotelOptionId,
             @jakarta.validation.constraints.NotNull Long mealOptionId,
-            Long drinkOptionId // [추가] null이면 기본 음료 없음
+            Long drinkOptionId //null이면 기본 음료 없음
     ) {}
 
-    // [추가] 관리자 판매 상태 변경
+    //관리자 판매 상태 변경
     public record StatusChangeRequest(
             @jakarta.validation.constraints.NotNull ProductStatus status
     ) {}
 
-    // [추가] 테마 기념품 연결 (itemId가 null이면 연결 해제)
+    // 테마 기념품 연결 (itemId가 null이면 연결 해제)
     public record SouvenirItemRequest(
             Long itemId
     ) {}

@@ -35,7 +35,7 @@ public class ReservationOption {
     @Column(nullable = false)
     private Long extraPrice;
 
-    // [추가] 기본 옵션인지(true), 고객이 바꾼 옵션인지(false)
+    //기본 옵션인지(true), 고객이 바꾼 옵션인지
     @Column(name = "is_default")
     private Boolean defaultSelected;
 

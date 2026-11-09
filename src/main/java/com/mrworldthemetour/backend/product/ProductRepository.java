@@ -59,12 +59,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @EntityGraph(attributePaths = "theme")
     Optional<Product> findById(Long id);
 
-    // [추가] 예약 신청/변경/취소 시 정원 동시성 제어 (비관적 락, @Transactional 내부에서만 사용)
+    // 예약 신청/변경/취소 시 정원 동시성 제어 (비관적 락 @Transactional 내부에서만 사용)
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Product p WHERE p.id = :id")
     Optional<Product> findByIdForUpdate(@Param("id") Long id);
 
-    // [추가] 모집 마감 스케줄러: 마감일이 지났는데 아직 모집 중(최소 인원 미달)인 상품
+    //모집 마감 스케줄러: 마감일이 지났는데 아직 모집 중(최소 인원 미달)인 상품
     @Query("SELECT p.id FROM Product p WHERE p.status = :status AND p.deadline < :now")
     List<Long> findIdsByStatusAndDeadlineBefore(@Param("status") ProductStatus status,
                                                 @Param("now") LocalDateTime now);

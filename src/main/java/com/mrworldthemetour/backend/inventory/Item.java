@@ -52,7 +52,7 @@ public class Item {
         this.currentAmount = Math.addExact(currentAmount, quantity);
     }
 
-    // [추가] 예약 배정: 재고가 부족하면 있는 만큼만 배정하고 실제 배정 수량 반환 (예약은 계속 진행)
+    //예약 배정: 재고가 부족하면 있는 만큼만 배정하고 실제 배정 수량 반환 (예약은 계속 진행)
     public int allocate(int quantity) {
         if (quantity <= 0) {
             throw new IllegalArgumentException("배정 수량은 양수여야 합니다.");
@@ -62,7 +62,7 @@ public class Item {
         return allocated;
     }
 
-    // [추가] 예약 변경/취소로 복구
+    //예약 변경/취소로 복구
     public void restore(int quantity) {
         if (quantity <= 0) {
             return;

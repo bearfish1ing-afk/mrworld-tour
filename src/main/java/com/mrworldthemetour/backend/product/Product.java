@@ -151,8 +151,7 @@ public class Product {
         this.status = ProductStatus.CANCELED;
     }
 
-    // [추가] 관리자 판매 상태 변경
-    // CONFIRMED는 인원 충족 시 자동으로만, CANCELED는 예약 일괄 취소가 필요하므로 DepartureService로만 전환
+    //관리자 판매 상태 변경
     public void changeStatus(ProductStatus status) {
         if (status == null || status == ProductStatus.CONFIRMED || status == ProductStatus.CANCELED) {
             throw new IllegalArgumentException("변경할 수 없는 상품 상태입니다.");

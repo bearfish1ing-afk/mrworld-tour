@@ -55,7 +55,7 @@ public class PriceService {
         items.add(PriceItem.of(OptionType.GRADE, grade.getId(), travelGrade.getLabel(),
                 people, nz(grade.getExtraPrice()), Boolean.TRUE.equals(grade.getDefaultGrade())));
 
-        //호텔, 식사, 차량: 관리자가 DB에 지정한 기본 옵션 사용 (이름 하드코딩 X)
+
         addSingle(items, optionMap, request.hotelOptionId(), ProductOptionType.HOTEL,
                 idOf(grade.getDefaultHotelOption()), people);
         addSingle(items, optionMap, request.mealOptionId(), ProductOptionType.MEAL,
@@ -63,14 +63,14 @@ public class PriceService {
         addSingle(items, optionMap, request.vehicleOptionId(), ProductOptionType.VEHICLE,
                 idOf(product.getDefaultVehicleOption()), people);
 
-        //음료: 등급 기본 음료(프리미엄 샴페인 등) + 고객 추가 음료
+        //등급 기본 음료(프리미엄 샴페인 등) + 고객 추가 음료
         addDefaultDrink(items, optionMap, idOf(grade.getDefaultDrinkOption()), people);
         addDrinks(items, optionMap, request.drinks());
 
         //합계
         long baseAmount = nz(product.getBasePrice()) * people;
         long optionAmount = items.stream().mapToLong(PriceItem::amount).sum();
-        long subtotal = Math.max(baseAmount + optionAmount, 0L); //다운그레이드로 음수가 되지 않게
+        long subtotal = Math.max(baseAmount + optionAmount, 0L);
         CustomerLevel level = customerLevelService.levelCalculate(userId);
         long discountAmount = level.discount(subtotal);
         long finalAmount = subtotal - discountAmount;

@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class StockHistory {
+    //재고 history
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -59,12 +60,12 @@ public class StockHistory {
         return history;
     } //item.recieve(quantity) 이후에 호출
 
-    // [추가] item.allocate() 이후 호출
+    //item.allocate() 이후 호출
     public static StockHistory allocate(Item item, Long reservationId, int quantity, String reason) {
         return of(item, reservationId, StockChangeType.ALLOCATE, quantity, reason);
     }
 
-    // [추가] item.restore() 이후 호출
+    //item.restore() 이후 호출
     public static StockHistory restore(Item item, Long reservationId, int quantity, String reason) {
         return of(item, reservationId, StockChangeType.RESTORE, quantity, reason);
     }

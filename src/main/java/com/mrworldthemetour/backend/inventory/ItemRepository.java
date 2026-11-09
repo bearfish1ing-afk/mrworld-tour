@@ -18,7 +18,5 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
             """)
     Optional<Item> findByIdForUpdate(@Param("itemId") Long itemId);
 
-    //재고 변경 시 사용, @Transactional 내부에서만 사용해야 함 (비관적 락)
-
-    //목록, 단건 조회와 저장은 상속받은 메서드로 처리 가능
+    //재고 변경 시 사용 @Transactional 내부에서만 사용
 }

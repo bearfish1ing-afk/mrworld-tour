@@ -94,7 +94,7 @@ public class AdminReservationService {
         switch (target) {
             case CANCELED -> reservationService.cancelInternal(r, lockProduct(r.getProductId()));
             case CONFIRMED -> {
-                r.confirm(); // 수동 확정 (예외 상황용) + 확정 문자
+                r.confirm(); // 수동 확정 + 확정 문자
                 eventPublisher.publishEvent(new DepartureConfirmedEvent(r.getProductId(), List.of(r.getId())));
             }
             case PENDING -> r.revertToPending();

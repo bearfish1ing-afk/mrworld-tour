@@ -37,7 +37,7 @@ public class ProductGrade {
     @JoinColumn(name = "default_meal_option_id", nullable = false)
     private ProductOption defaultMealOption;
 
-    // [추가] 등급 기본 음료 (예: 프리미엄 = 샴페인). 없으면 null
+    //등급 기본 음료 (프리미엄 = 샴페인). 없으면 null
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "default_drink_option_id")
     private ProductOption defaultDrinkOption;
@@ -49,7 +49,7 @@ public class ProductGrade {
         this.defaultMealOption = meal;
     }
 
-    // [추가] null이면 기본 음료 없음
+    //null이면 기본 음료 없음
     public void changeDefaultDrink(ProductOption drink) {
         if (drink == null) {
             this.defaultDrinkOption = null;
