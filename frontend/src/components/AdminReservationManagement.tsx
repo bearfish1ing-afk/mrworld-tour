@@ -151,7 +151,6 @@ export function AdminReservationManagement({
     );
   }
 
-  // 예약자 목록
   return (
     <AdminShell active="reservations" adminName={adminName} onNavigate={onNavigate} onLogout={onLogout}>
       <main className="min-w-0 flex-1 p-4 sm:p-7">
@@ -211,7 +210,6 @@ export function AdminReservationManagement({
   );
 }
 
-// 상세 예약 관리 화면
 function ReservationDetailView({
   reservation,
   adminName,
@@ -232,13 +230,11 @@ function ReservationDetailView({
   const [draft, setDraft] = useState<Reservation>(reservation);
   const [saved, setSaved] = useState(false);
 
-  // 💡 draft.drink 문자열 파싱 (예: "샴페인, 커피", "선택 안 함", "" 등 대응)
   const currentDrinks =
     draft.drink && draft.drink !== "선택 안 함"
       ? draft.drink.split(",").map((d) => d.trim()).filter(Boolean)
       : [];
 
-  // 투어 등급, 숙소, 식사 단일 선택 필드
   const singleOptionFields: {
     key: "grade" | "hotel" | "meal";
     label: string;
@@ -273,7 +269,6 @@ function ReservationDetailView({
     setSaved(false);
   };
 
-  // 💡 추가 음료
   const handleToggleDrink = (drinkName: "샴페인" | "커피") => {
     const nextDrinks = currentDrinks.includes(drinkName)
       ? currentDrinks.filter((d) => d !== drinkName)
@@ -357,11 +352,11 @@ function ReservationDetailView({
                         onSave(updated);
                         setSaved(true);
                       }}
-                      className={`h-9 w-full appearance-none rounded border px-3 pr-8 text-xs font-semibold outline-none cursor-pointer transition-colors ${
+                      className={`h-9 w-full appearance-none rounded border px-3 pr-8 text-xs outline-none cursor-pointer ${
                         draft.status === "확정"
-                          ? "border-[#1596b4] bg-[#eaf7f9] text-[#1596b4]"
+                          ? "border-[#c8d2d8] bg-white text-[#17212b]"
                           : draft.status === "취소 완료"
-                          ? "border-[#e02424] bg-[#fde8e8] text-[#e02424]"
+                          ? "border-[#c8d2d8] bg-white text-[#17212b]"
                           : "border-[#c8d2d8] bg-white text-[#17212b]"
                       }`}
                     >
@@ -562,7 +557,7 @@ function ReservationDetailView({
             </button>
             <span
               className={`text-[11px] ${
-                saved ? "text-[#1596b4]" : "text-[#8b96a3]"
+                saved ? "text-[#17212b]" : "text-[#17212b]"
               }`}
             >
               {saved
