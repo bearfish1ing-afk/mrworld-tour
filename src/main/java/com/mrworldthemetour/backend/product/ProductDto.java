@@ -95,9 +95,9 @@ public final class ProductDto {
             String optionName,
             Long extraPrice,
             String applyRule,
-            HotelLevel hotelLevel,     // [수정] HOTEL: STAR_3/4/5
+            HotelLevel hotelLevel,     //HOTEL: STAR_3/4/5
             Integer hotelRating,
-            VehicleType vehicleType,   // [추가] VEHICLE: 고정 차량 종류
+            VehicleType vehicleType,   //VEHICLE: 고정 차량 종류
             Integer serviceLevel       // MEAL, DRINK: 1~3단계
     ) {
         public static OptionResponse from(ProductOption option) {
@@ -185,7 +185,7 @@ public final class ProductDto {
             List<@jakarta.validation.constraints.NotNull @jakarta.validation.Valid GradeCreateRequest> grades
     ) {}
 
-    // [추가] 관리자 판매 상태 변경
+    //관리자 판매 상태 변경
     public record StatusChangeRequest(
             @jakarta.validation.constraints.NotNull ProductStatus status
     ) {}

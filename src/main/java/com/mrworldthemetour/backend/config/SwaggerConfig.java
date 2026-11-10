@@ -1,4 +1,4 @@
-package com.aloc.sai.config;
+package com.mrworldthemetour.backend.config;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
