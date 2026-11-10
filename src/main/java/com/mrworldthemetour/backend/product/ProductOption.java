@@ -33,21 +33,53 @@ public class ProductOption {
     @Column(name = "apply_rule", length = 20)
     private String applyRule;
 
-    @Column(name = "hotel_address", length = 255)
-    private String hotelAddress;
+    // [수정] 호텔은 고정 등급(enum)으로 관리, 주소는 받지 않음
+    @Enumerated(EnumType.STRING)
+    @Column(name = "hotel_level", length = 20)
+    private HotelLevel hotelLevel;
 
     @Column(name = "hotel_rating")
     private Integer hotelRating;
 
-    public static ProductOption hotel(Product product, String name, Long price,
-                                      String rule, String address, Integer rating) {
-        if (address == null || address.isBlank() || rating == null
-                || rating < 3 || rating > 5) {
-            throw new IllegalArgumentException("호텔 주소와 3~5성급 정보가 필요합니다.");
+    // [추가] 차량은 고정 종류(enum)로 관리
+    @Enumerated(EnumType.STRING)
+    @Column(name = "vehicle_type", length = 30)
+    private VehicleType vehicleType;
+
+    @Column(name = "service_level")
+    private Integer serviceLevel;
+
+    public static ProductOption foodOrDrink(Product product, ProductOptionType type,
+            String name, Long price, String rule, Integer level) {
+        if ((type != ProductOptionType.MEAL && type != ProductOptionType.DRINK)
+                || level == null || level < 1 || level > 3) {
+            throw new IllegalArgumentException("식사와 음료는 1~3단계 등급이 필요합니다.");
         }
-        ProductOption option = new ProductOption(product, ProductOptionType.HOTEL, name, price, rule);
-        option.hotelAddress = address;
-        option.hotelRating = rating;
+        ProductOption option = new ProductOption(product, type, name, price, rule);
+        option.serviceLevel = level;
+        return option;
+    }
+
+    // [수정] 호텔: 이름은 등급 라벨로 자동, 1인당 요금
+    public static ProductOption hotel(Product product, HotelLevel level, Long price) {
+        if (level == null) {
+            throw new IllegalArgumentException("호텔 등급(STAR_3/4/5)이 필요합니다.");
+        }
+        ProductOption option = new ProductOption(product, ProductOptionType.HOTEL,
+                level.getLabel(), price, "PER_PERSON");
+        option.hotelLevel = level;
+        option.hotelRating = level.getRating();
+        return option;
+    }
+
+    // [추가] 차량: 이름은 차량 라벨로 자동, 예약당 요금
+    public static ProductOption vehicle(Product product, VehicleType type, Long price) {
+        if (type == null) {
+            throw new IllegalArgumentException("차량 종류가 필요합니다.");
+        }
+        ProductOption option = new ProductOption(product, ProductOptionType.VEHICLE,
+                type.getLabel(), price, "PER_RESERVATION");
+        option.vehicleType = type;
         return option;
     }
 

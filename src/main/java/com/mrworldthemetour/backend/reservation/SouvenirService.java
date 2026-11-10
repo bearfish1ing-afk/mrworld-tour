@@ -4,13 +4,12 @@ import com.mrworldthemetour.backend.inventory.Item;
 import com.mrworldthemetour.backend.inventory.ItemRepository;
 import com.mrworldthemetour.backend.inventory.StockHistory;
 import com.mrworldthemetour.backend.inventory.StockHistoryRepository;
-import com.mrworldthemetour.backend.product.Theme;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-// 테마 기념품 재고 배정/복구
+// 상품 기념품 재고 배정/복구 (상품 생성 시 테마의 기념품이 상품에 복사됨)
 @Service
 @RequiredArgsConstructor
 public class SouvenirService {
@@ -18,13 +17,15 @@ public class SouvenirService {
     private final StockHistoryRepository stockHistoryRepository;
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public void adjust(Reservation reservation, Theme theme, int target) {
+    // target: 신청 = 인원 수, 인원 변경 = 새 인원 수, 취소 = 0
+    // 이미 배정된 물품이 있으면 그 물품 기준으로 배정/복구
+    public void adjust(Reservation reservation, Item souvenirItem, int target) {
         Long itemId = reservation.getSouvenirItemId();
         if (itemId == null) {
-            if (theme == null || theme.getSouvenirItem() == null) {
+            if (souvenirItem == null) {
                 return;
             }
-            itemId = theme.getSouvenirItem().getId();
+            itemId = souvenirItem.getId();
         }
 
         Item item = itemRepository.findByIdForUpdate(itemId).orElse(null);

@@ -15,9 +15,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AdminProductController {
     private final ProductService productService;
-    private final DepartureService departureService; // [추가] 출발 취소 시 예약 일괄 취소
+    private final DepartureService departureService; // 출발 취소 시 예약 일괄 취소
 
-    // [추가]
     @GetMapping
     public ResponseEntity<ProductDto.PageResponse> list(
             @RequestParam(name = "page", defaultValue = "0") int page,
@@ -30,7 +29,6 @@ public class AdminProductController {
         return ResponseEntity.status(201).body(Map.of("productId", productService.createProduct(request)));
     } //여행 상품 생성
 
-    // [추가]
     @PatchMapping("/{productId}/status")
     public ResponseEntity<Map<String, Integer>> changeStatus(@PathVariable("productId") Long productId,
             @Valid @RequestBody ProductDto.StatusChangeRequest request) {
@@ -43,14 +41,6 @@ public class AdminProductController {
         return ResponseEntity.noContent().build();
     } //판매 시작, 판매 중지, 출발 취소 등 상태 변경
 
-    @PatchMapping("/{productId}/grades/{gradeId}/default-options")
-    public ResponseEntity<Void> changeGradeDefaults(@PathVariable("productId") Long productId,
-            @PathVariable("gradeId") Long gradeId,
-            @Valid @RequestBody ProductDto.DefaultGradeOptionsRequest request) {
-        productService.changeGradeDefaults(productId, gradeId, request);
-        return ResponseEntity.noContent().build();
-    } //상품 선택해 등급별 기본 호텔, 식사, 음료 변경
-
     @PostMapping("/{productId}/options")
     public ResponseEntity<ProductDto.OptionResponse> addOption(
             @PathVariable("productId") Long productId,
@@ -58,12 +48,4 @@ public class AdminProductController {
         return ResponseEntity.status(201)
                 .body(productService.addOption(productId, request));
     } //여행 상품에 옵션 추가
-
-    // [추가]
-    @PatchMapping("/themes/{themeId}/souvenir-item")
-    public ResponseEntity<Void> changeThemeSouvenir(@PathVariable("themeId") Long themeId,
-            @RequestBody ProductDto.SouvenirItemRequest request) {
-        productService.changeThemeSouvenir(themeId, request.itemId());
-        return ResponseEntity.noContent().build();
-    } //테마 기념품(재고 물품) 연결
 }

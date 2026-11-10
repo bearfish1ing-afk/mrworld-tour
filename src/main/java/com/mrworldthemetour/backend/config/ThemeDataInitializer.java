@@ -5,6 +5,7 @@ import com.mrworldthemetour.backend.inventory.ItemRepository;
 import com.mrworldthemetour.backend.product.Theme;
 import com.mrworldthemetour.backend.product.ThemeRepository;
 import com.mrworldthemetour.backend.product.TravelGrade;
+import com.mrworldthemetour.backend.product.VehicleType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -14,27 +15,29 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+// 요구사항의 테마 4개(ID 1~4 고정) + 테마별 기념품을 서버 시작 시 등록 (이미 있으면 건너뜀)
+// 기념품: 허니문 커플 기념티, 효도 건강 인삼, 골프 골프공, 트레킹 스카프
 // 프론트는 테마 ID를 1~4로 고정해서 사용
 @Component
 @RequiredArgsConstructor
 public class ThemeDataInitializer implements ApplicationRunner {
 
-    private record ThemeSeed(long id, String name, String description, String vehicle,
+    private record ThemeSeed(long id, String name, String description, VehicleType vehicle,
                              TravelGrade minGrade, Integer fixedPeople, String souvenir) {}
 
     private static final List<ThemeSeed> SEEDS = List.of(
             new ThemeSeed(1, "허니문 낭만 투어",
                     "2인 전용 로맨틱 스페셜 룸 데코레이션, 커플 기념티 제공",
-                    "2인 전용 고급차량", TravelGrade.GRAND, 2, "커플 기념티"),
+                    VehicleType.COUPLE_LUXURY, TravelGrade.GRAND, 2, "커플 기념티"),
             new ThemeSeed(2, "효도 힐링 투어",
                     "고품격 안마·지압 서비스, 건강 인삼 기념품 제공",
-                    "10인 승합 고급차량", TravelGrade.GRAND, null, "건강 인삼"),
+                    VehicleType.VAN_10_LUXURY, TravelGrade.GRAND, null, "건강 인삼"),
             new ThemeSeed(3, "골프 챌린지 투어",
                     "유명 골프 리조트 테마 연출, 골프 액세서리(골프공) 제공",
-                    "10인 승합 고급차량", TravelGrade.CLASSIC, null, "골프공"),
+                    VehicleType.VAN_10_LUXURY, TravelGrade.CLASSIC, null, "골프공"),
             new ThemeSeed(4, "아웃도어 트레킹 투어",
                     "트레킹·산악 테마 어드벤처 연출, 아웃도어 기념품(스카프) 제공",
-                    "10인 승합 고급차량", TravelGrade.CLASSIC, null, "스카프")
+                    VehicleType.VAN_10_LUXURY, TravelGrade.CLASSIC, null, "스카프")
     );
 
     private final ThemeRepository themeRepository;
@@ -53,7 +56,7 @@ public class ThemeDataInitializer implements ApplicationRunner {
                 jdbcTemplate.update(
                         "INSERT INTO theme (theme_id, theme_name, description, default_vehicle, min_grade, fixed_people) "
                                 + "VALUES (?, ?, ?, ?, ?, ?)",
-                        seed.id(), seed.name(), seed.description(), seed.vehicle(),
+                        seed.id(), seed.name(), seed.description(), seed.vehicle().name(),
                         seed.minGrade().name(), seed.fixedPeople());
                 theme = themeRepository.findById(seed.id()).orElseThrow();
             } else if (!seed.name().equals(theme.getThemeName())) {

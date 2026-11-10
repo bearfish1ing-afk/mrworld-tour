@@ -1,5 +1,6 @@
 package com.mrworldthemetour.backend.product;
 
+import com.mrworldthemetour.backend.inventory.Item;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -26,6 +27,15 @@ public class Product {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "default_vehicle_option_id")
     private ProductOption defaultVehicleOption;
+
+    // [추가] 상품 기념품: 상품 생성 시 테마의 기념품이 복사됨 (예약 시 인원 수만큼 재고에서 배정)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "souvenir_item_id")
+    private Item souvenirItem;
+
+    public void assignSouvenirItem(Item item) {
+        this.souvenirItem = item;
+    }
 
     public void changeDefaultVehicleOption(ProductOption option) {
         if (option == null || getId() == null || option.getProduct() == null

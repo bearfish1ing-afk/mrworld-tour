@@ -13,7 +13,7 @@ public final class ProductDto {
             Long id,
             String name,
             String description,
-            String defaultVehicle,
+            VehicleType defaultVehicle, // [수정] 테마 기본 차량 (고정 enum)
             TravelGrade minGrade,
             Integer fixedPeople
     ) {
@@ -74,7 +74,7 @@ public final class ProductDto {
             Boolean defaultGrade,
             Long defaultHotelOptionId,
             Long defaultMealOptionId,
-            Long defaultDrinkOptionId //레스토랑 음료(샴페인같은 경우 처리)
+            Long defaultDrinkOptionId
     ) {
         public static GradeResponse from(ProductGrade grade) {
             return new GradeResponse(
@@ -95,8 +95,10 @@ public final class ProductDto {
             String optionName,
             Long extraPrice,
             String applyRule,
-            String hotelAddress,
-            Integer hotelRating
+            HotelLevel hotelLevel,     // [수정] HOTEL: STAR_3/4/5
+            Integer hotelRating,
+            VehicleType vehicleType,   // [추가] VEHICLE: 고정 차량 종류
+            Integer serviceLevel       // MEAL, DRINK: 1~3단계
     ) {
         public static OptionResponse from(ProductOption option) {
             return new OptionResponse(
@@ -105,8 +107,10 @@ public final class ProductDto {
                     option.getOptionName(),
                     option.getExtraPrice(),
                     option.getApplyRule(),
-                    option.getHotelAddress(),
-                    option.getHotelRating()
+                    option.getHotelLevel(),
+                    option.getHotelRating(),
+                    option.getVehicleType(),
+                    option.getServiceLevel()
             );
         }
     }
@@ -123,23 +127,27 @@ public final class ProductDto {
     ) {
     }
 
+    // [수정] 호텔/차량은 종류가 고정(enum)이라 가격만 입력, 이름과 요금 규칙은 자동
+    //  - HOTEL  : hotelLevel(STAR_3/4/5) + extraPrice            (1인당)
+    //  - VEHICLE: vehicleType + extraPrice                       (예약당)
+    //  - MEAL/DRINK: optionName + extraPrice + applyRule + serviceLevel(1~3)
     public record OptionCreateRequest(
             @jakarta.validation.constraints.NotNull
             ProductOptionType optionType,
-            @jakarta.validation.constraints.NotBlank
             @jakarta.validation.constraints.Size(max = 100)
             String optionName,
             @jakarta.validation.constraints.NotNull
             @jakarta.validation.constraints.PositiveOrZero
             Long extraPrice,
-            @jakarta.validation.constraints.NotBlank
             @jakarta.validation.constraints.Size(max = 20)
             @jakarta.validation.constraints.Pattern(regexp = "PER_PERSON|PER_RESERVATION",
                     message = "요금 적용 규칙은 PER_PERSON 또는 PER_RESERVATION이어야 합니다.")
             String applyRule,
-            @jakarta.validation.constraints.Size(max = 255)
-            String hotelAddress,
-            Integer hotelRating
+            HotelLevel hotelLevel,
+            VehicleType vehicleType,
+            @jakarta.validation.constraints.Min(1)
+            @jakarta.validation.constraints.Max(3)
+            Integer serviceLevel
     ) {}
 
     public record GradeCreateRequest(
@@ -147,16 +155,10 @@ public final class ProductDto {
             @jakarta.validation.constraints.Size(max = 20) String grade,
             @jakarta.validation.constraints.NotNull
             @jakarta.validation.constraints.PositiveOrZero Long extraPrice,
-            boolean defaultGrade,
-            @jakarta.validation.constraints.NotNull
-            @jakarta.validation.constraints.PositiveOrZero Integer hotelOptionIndex,
-            @jakarta.validation.constraints.NotNull
-            @jakarta.validation.constraints.PositiveOrZero Integer mealOptionIndex,
-            //등급 기본 음료 (선택, 예: 프리미엄 샴페인)
-            @jakarta.validation.constraints.PositiveOrZero Integer drinkOptionIndex
+            boolean defaultGrade
+            // [수정] hotelOptionIndex 삭제: 기본 호텔/식사/음료는 등급으로 자동 결정
     ) {}
 
-    // 옵션 인덱스는 이 요청의 options 배열에서 0부터 시작하는 위치
     public record CreateRequest(
             @jakarta.validation.constraints.NotNull Long themeId,
             @jakarta.validation.constraints.NotBlank
@@ -183,20 +185,9 @@ public final class ProductDto {
             List<@jakarta.validation.constraints.NotNull @jakarta.validation.Valid GradeCreateRequest> grades
     ) {}
 
-    public record DefaultGradeOptionsRequest(
-            @jakarta.validation.constraints.NotNull Long hotelOptionId,
-            @jakarta.validation.constraints.NotNull Long mealOptionId,
-            Long drinkOptionId //null이면 기본 음료 없음
-    ) {}
-
-    //관리자 판매 상태 변경
+    // [추가] 관리자 판매 상태 변경
     public record StatusChangeRequest(
             @jakarta.validation.constraints.NotNull ProductStatus status
-    ) {}
-
-    // 테마 기념품 연결 (itemId가 null이면 연결 해제)
-    public record SouvenirItemRequest(
-            Long itemId
     ) {}
 
     public record PageResponse(

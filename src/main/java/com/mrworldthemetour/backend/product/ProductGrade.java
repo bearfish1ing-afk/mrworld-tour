@@ -37,26 +37,31 @@ public class ProductGrade {
     @JoinColumn(name = "default_meal_option_id", nullable = false)
     private ProductOption defaultMealOption;
 
-    //등급 기본 음료 (프리미엄 = 샴페인). 없으면 null
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "default_drink_option_id")
+    @JoinColumn(name = "default_drink_option_id", nullable = false)
     private ProductOption defaultDrinkOption;
 
-    public void changeDefaultOptions(ProductOption hotel, ProductOption meal) {
+    public void initializeDefaultOptions(ProductOption hotel, ProductOption meal, ProductOption drink) {
         validateDefault(hotel, ProductOptionType.HOTEL);
         validateDefault(meal, ProductOptionType.MEAL);
+        validateDefault(drink, ProductOptionType.DRINK);
+        TravelGrade travelGrade = TravelGrade.valueOf(grade);
+        // [추가] 요구사항: 클래식 3등급, 그랜드 4등급, 프리미엄 5등급 호텔
+        if (hotel.getHotelLevel() != HotelLevel.forGrade(travelGrade)) {
+            throw new IllegalArgumentException("호텔 등급이 여행 등급과 일치해야 합니다.");
+        }
+        int expectedLevel = switch (travelGrade) {
+            case CLASSIC -> 1;
+            case GRAND -> 2;
+            case PREMIUM -> 3;
+        };
+        if (!Integer.valueOf(expectedLevel).equals(meal.getServiceLevel())
+                || !Integer.valueOf(expectedLevel).equals(drink.getServiceLevel())) {
+            throw new IllegalArgumentException("식사와 음료 등급이 여행 등급과 일치해야 합니다.");
+        }
+        this.defaultDrinkOption = drink;
         this.defaultHotelOption = hotel;
         this.defaultMealOption = meal;
-    }
-
-    //null이면 기본 음료 없음
-    public void changeDefaultDrink(ProductOption drink) {
-        if (drink == null) {
-            this.defaultDrinkOption = null;
-            return;
-        }
-        validateDefault(drink, ProductOptionType.DRINK);
-        this.defaultDrinkOption = drink;
     }
 
     private void validateDefault(ProductOption option, ProductOptionType type) {

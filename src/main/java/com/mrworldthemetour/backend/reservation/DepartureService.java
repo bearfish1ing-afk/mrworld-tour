@@ -89,7 +89,7 @@ public class DepartureService {
         for (Reservation r : targets) {
             r.cancel();
             product.changePeople(-r.getPeople());
-            souvenirService.adjust(r, product.getTheme(), 0); // 배정했던 기념품 복구
+            souvenirService.adjust(r, product.getSouvenirItem(), 0); // 배정했던 기념품 복구
         }
         product.cancelDeparture();
 

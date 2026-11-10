@@ -23,9 +23,10 @@ public class Theme {
     @Column(name = "description", length = 255)
     private String description;
 
-    // 기본 차량 옵션명 상품 생성 시 이름이 일치하는 차량 옵션을 기본값으로 연결한다.
+    // [수정] 테마 기본 차량 (고정 enum). 상품 생성 시 이 차량이 기본 차량 옵션이 됨
+    @Enumerated(EnumType.STRING)
     @Column(name = "default_vehicle", length = 100)
-    private String defaultVehicle;
+    private VehicleType defaultVehicle;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "min_grade", length = 20)
@@ -34,26 +35,23 @@ public class Theme {
     @Column(name = "fixed_people")
     private Integer fixedPeople;
 
-    //테마 기념품 (커플티, 인삼, 골프공, 스카프) - 예약 시 재고에서 인원 수만큼 배정
+    // 테마 기념품 (요구사항 고정: 허니문 커플 기념티, 효도 건강 인삼, 골프 골프공, 트레킹 스카프)
+    // 상품 생성 시 이 값이 상품에 복사되고, 예약 시 상품의 기념품이 인원 수만큼 배정됨
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "souvenir_item_id")
     private Item souvenirItem;
 
-    public Theme(String themeName, String description, String defaultVehicle,
+    public Theme(String themeName, String description, VehicleType defaultVehicle,
                  TravelGrade minGrade, Integer fixedPeople) {
         this(themeName, description);
         changeRules(defaultVehicle, minGrade, fixedPeople);
     }
 
-    public void changeRules(String defaultVehicle, TravelGrade minGrade, Integer fixedPeople) {
+    public void changeRules(VehicleType defaultVehicle, TravelGrade minGrade, Integer fixedPeople) {
         if (fixedPeople != null && fixedPeople <= 0) {
             throw new IllegalArgumentException("고정 예약 인원은 양수여야 합니다.");
         }
-        if (defaultVehicle != null && defaultVehicle.strip().length() > 100) {
-            throw new IllegalArgumentException("기본 차량명은 100자 이하여야 합니다.");
-        }
-        this.defaultVehicle = defaultVehicle == null || defaultVehicle.isBlank()
-                ? null : defaultVehicle.strip();
+        this.defaultVehicle = defaultVehicle;
         this.minGrade = minGrade;
         this.fixedPeople = fixedPeople;
     }

@@ -30,7 +30,7 @@ public class ReservationService {
     private final PriceService priceService;
     private final DepartureService departureService;
     private final SouvenirService souvenirService;
-    private ProductGradeRepository productGradeRepository;
+    private final ProductGradeRepository productGradeRepository; // 새 등급의 기본 음료 조회 (final 필수: 생성자 주입)
 
     //예약 신청
     @Transactional
@@ -63,7 +63,7 @@ public class ReservationService {
         Reservation saved = reservationRepository.save(reservation);
 
         product.changePeople(saved.getPeople());                              //신청 인원 증가
-        souvenirService.adjust(saved, product.getTheme(), saved.getPeople());  //기념품 재고 배정
+        souvenirService.adjust(saved, product.getSouvenirItem(), saved.getPeople());  //기념품 재고 배정
         departureService.reevaluate(product);                                 //3명 이상이면 출발 확정 + 문자
         departureService.confirmIfDepartureConfirmed(product, saved);         //이미 확정된 상품이면 바로 확정
 
@@ -104,7 +104,7 @@ public class ReservationService {
                 price.baseAmount(), price.optionAmount(), price.discountAmount(), price.finalAmount());
 
         product.changePeople(delta);
-        souvenirService.adjust(reservation, product.getTheme(), newPeople); //인원 차이만큼 배정/복구
+        souvenirService.adjust(reservation, product.getSouvenirItem(), newPeople); //인원 차이만큼 배정/복구
         departureService.reevaluate(product);
         departureService.confirmIfDepartureConfirmed(product, reservation);
 
@@ -125,7 +125,7 @@ public class ReservationService {
     public void cancelInternal(Reservation reservation, Product product) {
         reservation.cancel();                                       //이미 취소면 409
         product.changePeople(-reservation.getPeople());
-        souvenirService.adjust(reservation, product.getTheme(), 0); //배정했던 만큼만 복구
+        souvenirService.adjust(reservation, product.getSouvenirItem(), 0); //배정했던 만큼만 복구
         departureService.reevaluate(product);                       //최소 인원 밑이면 다시 모집 중
     }
 
