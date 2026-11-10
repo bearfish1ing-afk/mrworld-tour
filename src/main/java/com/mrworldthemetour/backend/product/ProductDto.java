@@ -98,7 +98,8 @@ public final class ProductDto {
             HotelLevel hotelLevel,     //HOTEL: STAR_3/4/5
             Integer hotelRating,
             VehicleType vehicleType,   //VEHICLE: 고정 차량 종류
-            Integer serviceLevel       // MEAL, DRINK: 1~3단계
+            MealType mealType,         //MEAL: 고정 식사 종류
+            Integer serviceLevel       //MEAL: 1~3단계 (음료는 null)
     ) {
         public static OptionResponse from(ProductOption option) {
             return new OptionResponse(
@@ -110,6 +111,7 @@ public final class ProductDto {
                     option.getHotelLevel(),
                     option.getHotelRating(),
                     option.getVehicleType(),
+                    option.getMealType(),
                     option.getServiceLevel()
             );
         }
@@ -130,7 +132,8 @@ public final class ProductDto {
     // [수정] 호텔/차량은 종류가 고정(enum)이라 가격만 입력, 이름과 요금 규칙은 자동
     //  - HOTEL  : hotelLevel(STAR_3/4/5) + extraPrice            (1인당)
     //  - VEHICLE: vehicleType + extraPrice                       (예약당)
-    //  - MEAL/DRINK: optionName + extraPrice + applyRule + serviceLevel(1~3)
+    //  - MEAL   : mealType(LUNCHBOX/LOCAL_RESTAURANT/FINE_DINING) + extraPrice (1인당)
+    //  - DRINK  : optionName + extraPrice + applyRule (프리미엄을 팔면 "샴페인" 필수)
     public record OptionCreateRequest(
             @jakarta.validation.constraints.NotNull
             ProductOptionType optionType,
@@ -145,9 +148,7 @@ public final class ProductDto {
             String applyRule,
             HotelLevel hotelLevel,
             VehicleType vehicleType,
-            @jakarta.validation.constraints.Min(1)
-            @jakarta.validation.constraints.Max(3)
-            Integer serviceLevel
+            MealType mealType
     ) {}
 
     public record GradeCreateRequest(

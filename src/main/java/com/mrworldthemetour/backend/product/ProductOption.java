@@ -46,18 +46,33 @@ public class ProductOption {
     @Column(name = "vehicle_type", length = 30)
     private VehicleType vehicleType;
 
+    // [추가] 식사는 고정 종류(enum)로 관리
+    @Enumerated(EnumType.STRING)
+    @Column(name = "meal_type", length = 30)
+    private MealType mealType;
+
+    // 식사 단계 (1 도시락, 2 현지식 레스토랑, 3 고급 레스토랑). 음료는 사용하지 않음
     @Column(name = "service_level")
     private Integer serviceLevel;
 
-    public static ProductOption foodOrDrink(Product product, ProductOptionType type,
-            String name, Long price, String rule, Integer level) {
-        if ((type != ProductOptionType.MEAL && type != ProductOptionType.DRINK)
-                || level == null || level < 1 || level > 3) {
-            throw new IllegalArgumentException("식사와 음료는 1~3단계 등급이 필요합니다.");
+    // [수정] 식사: 이름은 식사 라벨로 자동, 1인당 요금
+    public static ProductOption meal(Product product, MealType type, Long price) {
+        if (type == null) {
+            throw new IllegalArgumentException("식사 종류(LUNCHBOX/LOCAL_RESTAURANT/FINE_DINING)가 필요합니다.");
         }
-        ProductOption option = new ProductOption(product, type, name, price, rule);
-        option.serviceLevel = level;
+        ProductOption option = new ProductOption(product, ProductOptionType.MEAL,
+                type.getLabel(), price, "PER_PERSON");
+        option.mealType = type;
+        option.serviceLevel = type.getLevel();
         return option;
+    }
+
+    // [수정] 음료: 이름 자유 입력 (샴페인, 커피 등)
+    public static ProductOption drink(Product product, String name, Long price, String rule) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("음료 이름이 필요합니다.");
+        }
+        return new ProductOption(product, ProductOptionType.DRINK, name.strip(), price, rule);
     }
 
     // [수정] 호텔: 이름은 등급 라벨로 자동, 1인당 요금

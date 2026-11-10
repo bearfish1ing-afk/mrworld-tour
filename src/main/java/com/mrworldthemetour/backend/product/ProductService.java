@@ -165,16 +165,18 @@ public class ProductService {
                 throw invalidSearch("차량 종류를 선택해 주세요.");
             }
             option = ProductOption.vehicle(product, request.vehicleType(), request.extraPrice());
-        } else if (request.optionType() == ProductOptionType.MEAL
-                || request.optionType() == ProductOptionType.DRINK) {
-            if (request.serviceLevel() == null || request.serviceLevel() < 1 || request.serviceLevel() > 3) {
-                throw invalidSearch("식사와 음료 등급은 1~3이어야 합니다.");
+        } else if (request.optionType() == ProductOptionType.MEAL) {
+            // [수정] 식사: 고정 종류 + 가격만 (이름 자동, 1인당)
+            if (request.mealType() == null) {
+                throw invalidSearch("식사 종류(LUNCHBOX, LOCAL_RESTAURANT, FINE_DINING)를 선택해 주세요.");
             }
+            option = ProductOption.meal(product, request.mealType(), request.extraPrice());
+        } else if (request.optionType() == ProductOptionType.DRINK) {
+            // [수정] 음료: 이름 자유 입력 (샴페인, 커피 등)
             if (request.optionName() == null || request.optionName().isBlank() || request.applyRule() == null) {
-                throw invalidSearch("식사와 음료는 이름과 요금 적용 규칙이 필요합니다.");
+                throw invalidSearch("음료는 이름과 요금 적용 규칙이 필요합니다.");
             }
-            option = ProductOption.foodOrDrink(product, request.optionType(), request.optionName().strip(),
-                    request.extraPrice(), request.applyRule(), request.serviceLevel());
+            option = ProductOption.drink(product, request.optionName(), request.extraPrice(), request.applyRule());
         } else {
             throw invalidSearch("옵션 종류를 선택해 주세요.");
         }
@@ -216,8 +218,10 @@ public class ProductService {
                 throw invalidSearch("테마의 최소 여행 등급보다 낮은 등급은 등록할 수 없습니다.");
             }
             resolveHotelIndex(request, selected); // [수정] 등급에 맞는 호텔(3/4/5등급)이 있는지
-            resolveFoodIndex(request, selected, ProductOptionType.MEAL);
-            resolveFoodIndex(request, selected, ProductOptionType.DRINK);
+            resolveMealIndex(request, selected);  // [수정] 등급에 맞는 식사(도시락/현지식/고급)가 있는지
+            if (selected == TravelGrade.PREMIUM) {
+                resolvePremiumDrinkIndex(request); // [수정] 프리미엄만 기본 음료(샴페인) 필수
+            }
         }
         Product product = productRepository.save(new Product(theme, request.productCode(),
                 request.title(), request.country(), request.duration(), request.description(),
@@ -239,32 +243,49 @@ public class ProductService {
             ProductGrade grade = new ProductGrade(product, input.grade(), input.extraPrice(), input.defaultGrade());
             TravelGrade travelGrade = TravelGrade.valueOf(input.grade());
             grade.initializeDefaultOptions(options.get(resolveHotelIndex(request, travelGrade)),
-                    options.get(resolveFoodIndex(request, travelGrade, ProductOptionType.MEAL)),
-                    options.get(resolveFoodIndex(request, travelGrade, ProductOptionType.DRINK)));
+                    options.get(resolveMealIndex(request, travelGrade)),
+                    travelGrade == TravelGrade.PREMIUM ? options.get(resolvePremiumDrinkIndex(request)) : null);
             productGradeRepository.save(grade);
         }
         productRepository.flush();
         return product.getId();
     } //여행 상품 생성
 
-    private int resolveFoodIndex(ProductDto.CreateRequest request, TravelGrade grade, ProductOptionType type) {
-        int level = switch (grade) {
-            case CLASSIC -> 1;
-            case GRAND -> 2;
-            case PREMIUM -> 3;
-        };
+    // [수정] 등급에 맞는 기본 식사 옵션 위치 (클래식 도시락, 그랜드 현지식 레스토랑, 프리미엄 고급 레스토랑)
+    private int resolveMealIndex(ProductDto.CreateRequest request, TravelGrade grade) {
+        MealType type = MealType.forGrade(grade);
         Integer matched = null;
         for (int i = 0; i < request.options().size(); i++) {
             var option = request.options().get(i);
-            if (option.optionType() == type && Integer.valueOf(level).equals(option.serviceLevel())) {
+            if (option.optionType() == ProductOptionType.MEAL && option.mealType() == type) {
                 if (matched != null) {
-                    throw invalidSearch(type + "의 " + level + "단계 옵션은 하나만 등록해 주세요.");
+                    throw invalidSearch(type.getLabel() + " 옵션은 하나만 등록해 주세요.");
                 }
                 matched = i;
             }
         }
         if (matched == null) {
-            throw invalidSearch(grade + "의 기본 " + type + " 옵션(" + level + "단계)이 필요합니다.");
+            throw invalidSearch(grade + " 등급에는 " + type.getLabel() + " 옵션이 필요합니다.");
+        }
+        return matched;
+    }
+
+    // [추가] 프리미엄 기본 음료(샴페인) 옵션 위치
+    private int resolvePremiumDrinkIndex(ProductDto.CreateRequest request) {
+        String name = ProductGrade.PREMIUM_DEFAULT_DRINK;
+        Integer matched = null;
+        for (int i = 0; i < request.options().size(); i++) {
+            var option = request.options().get(i);
+            if (option.optionType() == ProductOptionType.DRINK
+                    && option.optionName() != null && name.equals(option.optionName().strip())) {
+                if (matched != null) {
+                    throw invalidSearch(name + " 옵션은 하나만 등록해 주세요.");
+                }
+                matched = i;
+            }
+        }
+        if (matched == null) {
+            throw invalidSearch("PREMIUM 등급에는 기본 음료 '" + name + "' 옵션이 필요합니다.");
         }
         return matched;
     }
