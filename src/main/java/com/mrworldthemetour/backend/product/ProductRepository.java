@@ -64,7 +64,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("SELECT p FROM Product p WHERE p.id = :id")
     Optional<Product> findByIdForUpdate(@Param("id") Long id);
 
-    //모집 마감 스케줄러: 마감일이 지났는데 아직 모집 중(최소 인원 미달)인 상품
+    //모집 마감
     @Query("SELECT p.id FROM Product p WHERE p.status = :status AND p.deadline < :now")
     List<Long> findIdsByStatusAndDeadlineBefore(@Param("status") ProductStatus status,
                                                 @Param("now") LocalDateTime now);

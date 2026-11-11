@@ -60,7 +60,7 @@ public class AuthDto {
     ) {
     }
 
-    // 일반·관리자 로그인 요청
+    // 일반, 관리자 로그인 요청
     public record LoginRequest(
 
             @NotBlank(message = "이메일을 입력해 주세요.")

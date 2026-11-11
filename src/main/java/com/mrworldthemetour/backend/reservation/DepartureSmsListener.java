@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-// 출발 확정 / 출발 취소 문자 발송
+// 출발 확정, 취소 시 문자 발송
 @Slf4j
 @Component
 @RequiredArgsConstructor

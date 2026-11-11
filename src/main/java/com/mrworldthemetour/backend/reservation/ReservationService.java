@@ -21,7 +21,7 @@ public class ReservationService {
     private static final int CODE_LENGTH = 5;
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    // 모집 중, 출발 확정 후에도 정원/마감 전이면 예약 가능
+    //모집 중, 출발 확정 상태에서 예약 가능
     private static final Set<ProductStatus> RESERVABLE =
             EnumSet.of(ProductStatus.RECRUITING, ProductStatus.CONFIRMED);
 
@@ -30,9 +30,9 @@ public class ReservationService {
     private final PriceService priceService;
     private final DepartureService departureService;
     private final SouvenirService souvenirService;
-    private final ProductGradeRepository productGradeRepository; // 새 등급의 기본 음료 조회 (final 필수: 생성자 주입)
+    private final ProductGradeRepository productGradeRepository; // 새 등급의 기본 음료 조회 (final)
 
-    //예약 신청
+    //예약 생성
     @Transactional
     public ReservationCreateResponse create(Long userId, ReservationCreateRequest request) {
         if (request.productId() == null) {
@@ -62,15 +62,15 @@ public class ReservationService {
         replaceOptions(reservation, price);
         Reservation saved = reservationRepository.save(reservation);
 
-        product.changePeople(saved.getPeople());                              //신청 인원 증가
-        souvenirService.adjust(saved, product.getSouvenirItem(), saved.getPeople());  //기념품 재고 배정
-        departureService.reevaluate(product);                                 //3명 이상이면 출발 확정 + 문자
-        departureService.confirmIfDepartureConfirmed(product, saved);         //이미 확정된 상품이면 바로 확정
+        product.changePeople(saved.getPeople());
+        souvenirService.adjust(saved, product.getSouvenirItem(), saved.getPeople());
+        departureService.reevaluate(product);                                 //출발 확정 인원 충족하는지 다시 검사
+        departureService.confirmIfDepartureConfirmed(product, saved);       //이미 출발 확정된 여행 상품인 경우 바로 예약 확정
 
         return toResponse(saved);
     }
 
-    //예약 변경 고객
+    //예약 변경(고객)
     @Transactional
     public ReservationCreateResponse change(Long userId, Long reservationId, ReservationChangeRequest request) {
         Reservation reservation = findMyReservation(userId, reservationId);
@@ -111,7 +111,7 @@ public class ReservationService {
         return toResponse(reservation);
     }
 
-    //예약 취소 고객
+    //예약 취소(고객)
     @Transactional
     public void cancel(Long userId, Long reservationId) {
         Reservation reservation = findMyReservation(userId, reservationId);
@@ -188,7 +188,7 @@ public class ReservationService {
                 req.hotelOptionId() != null ? req.hotelOptionId() : keepCustomized(r, OptionType.HOTEL, gradeChanged),
                 req.mealOptionId() != null ? req.mealOptionId() : keepCustomized(r, OptionType.MEAL, gradeChanged),
                 req.vehicleOptionId() != null ? req.vehicleOptionId() : keepCustomized(r, OptionType.VEHICLE, false),
-                req.drinks() != null ? req.drinks() : currentExtraDrinks(r, gradeChanged ? gradeId : null) // [수정]
+                req.drinks() != null ? req.drinks() : currentExtraDrinks(r, gradeChanged ? gradeId : null)
         );
     }
 
@@ -205,7 +205,7 @@ public class ReservationService {
                 .orElse(null);
     }
 
-    // 등급이 바뀌었으면 새 등급의 기본 음료와 같은 것은 제외 (예: 그랜드+샴페인 추가 → 프리미엄: 샴페인 중복 결제 방지)
+    // 등급 변경 시 새 등급의 기본 음료와 같은 음료 옵션 제외
     private List<PriceRequest.DrinkRequest> currentExtraDrinks(Reservation r, Long newGradeId) {
         Long newDefaultDrinkId = newGradeId == null ? null
                 : productGradeRepository.findByIdAndProduct_Id(newGradeId, r.getProductId())

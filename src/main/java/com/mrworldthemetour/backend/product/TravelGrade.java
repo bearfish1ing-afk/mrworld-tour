@@ -3,7 +3,6 @@ package com.mrworldthemetour.backend.product;
 import com.mrworldthemetour.backend.exception.BusinessException;
 import org.springframework.http.HttpStatus;
 
-// reservation/TourGrade 를 대체 (TourGrade.java 는 삭제)
 public enum TravelGrade {
     CLASSIC(1, "클래식"),
     GRAND(2, "그랜드"),
@@ -25,7 +24,6 @@ public enum TravelGrade {
         return minimum == null || rank >= minimum.rank;
     }
 
-    // "PREMIUM", "premium", "프리미엄" 모두 허용
     public static TravelGrade from(String value) {
         if (value != null) {
             String v = value.trim();

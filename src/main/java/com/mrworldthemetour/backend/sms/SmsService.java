@@ -68,7 +68,7 @@ public class SmsService implements SignupProofVerifier {
         }
     }
 
-    // 발송 실패도 요청 횟수와 재발송 간격에 포함한다.
+    // 발송 실패도 요청 횟수와 재발송 간격에 포함
     @Transactional(noRollbackFor = BusinessException.class)
     public SmsDto.SendResponse requestCode(SmsDto.SendRequest request) {
         String phoneNum = normalizePhone(request.phoneNum());
@@ -135,7 +135,7 @@ public class SmsService implements SignupProofVerifier {
         verification.setAttempts(0);
         verification.setSent(false);
 
-        // 재발송하면 이전 가입 증표도 무효화
+        // 재발송하면 이전 가입 증표 무효화
         verification.setProofHash(null);
         verification.setProofExpiresAt(null);
         verification.setConsumed(false);
@@ -144,7 +144,7 @@ public class SmsService implements SignupProofVerifier {
                 verification.getRequestCount() + 1
         );
 
-        // 외부 발송 전에 DB 제약조건 등 확인
+        // 외부 발송 전에 제약조건 확인
         smsRepository.saveAndFlush(verification);
 
         Message message = new Message();
@@ -165,7 +165,6 @@ public class SmsService implements SignupProofVerifier {
                 throw new IllegalStateException("SMS 발송 접수 실패");
             }
         } catch (Exception exception) {
-            // 인증번호나 API Secret, 업체 오류 원문은 응답에 넣지 않는다.
             throw error(
                     HttpStatus.BAD_GATEWAY,
                     "SMS_SEND_FAILED",
@@ -182,7 +181,7 @@ public class SmsService implements SignupProofVerifier {
         );
     }
 
-    // 인증번호 오류를 반환해도 실패 횟수는 DB에 남겨야 한다.
+    // 인증번호 오류 반환, 실패 횟수 DB에 저장
     @Transactional(noRollbackFor = BusinessException.class)
     public SmsDto.VerifyResponse verifyCode(SmsDto.VerifyRequest request) {
         SmsVerification verification =
@@ -254,7 +253,7 @@ public class SmsService implements SignupProofVerifier {
         );
     }
 
-    // 반드시 AuthService.signup()의 트랜잭션에 참여한다.
+    // AuthService.signup()의 트랜잭션에서 사용
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public void verifyAndConsume(String signupProof, String phoneNum) {

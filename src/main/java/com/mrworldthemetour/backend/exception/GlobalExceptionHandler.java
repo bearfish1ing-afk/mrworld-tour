@@ -31,7 +31,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static final Logger log =
             LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    // 1. 이메일 중복, SMS 인증 만료 등 업무 규칙 위반
+    //이메일 중복, SMS 인증 만료 등 업무 규칙 위반
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Object> handleBusinessException(
             BusinessException exception,
@@ -46,7 +46,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         );
     }
 
-    // 2. @Valid가 적용된 요청 DTO의 검증 실패
+    //@Valid가 적용된 요청 DTO의 검증 실패
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
             MethodArgumentNotValidException exception,
@@ -85,7 +85,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         );
     }
 
-    // 3. JSON 문법 오류, 잘못된 타입, 필수 요청 본문 누락
+    // JSON 문법 오류, 타입 오류, 필수 본문 내용 누락
     @Override
     protected ResponseEntity<Object> handleHttpMessageNotReadable(
             HttpMessageNotReadableException exception,
@@ -108,7 +108,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         );
     }
 
-    // 4. MVC 처리 중 발생한 인증 실패
+    // MVC 처리 중 인증 실패
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<Object> handleAuthenticationException(
             AuthenticationException exception,
@@ -123,7 +123,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         );
     }
 
-    // 5. MVC 처리 중 발생한 접근 권한 부족
+    // MVC 처리 중 권한 부족
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Object> handleAccessDeniedException(
             AccessDeniedException exception,
@@ -138,7 +138,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         );
     }
 
-    // 6. 예상하지 못한 서버 오류
+    // 서버 오류(500)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleUnexpectedException(
             Exception exception,

@@ -23,7 +23,6 @@ public class PriceService {
     private final ProductOptionRepository productOptionRepository;
     private final CustomerLevelService customerLevelService;
 
-    //예상 금액 계산
     public PriceResponse calculate(PriceRequest request, Long userId) {
         if (request.productId() == null || request.productGradeId() == null) {
             throw badRequest("REQUIRED_VALUE_MISSING", "상품과 등급을 선택해 주세요.");
@@ -34,10 +33,10 @@ public class PriceService {
                         "PRODUCT_NOT_FOUND", "존재하지 않는 상품입니다."));
         Theme theme = product.getTheme();
 
-        //테마 인원 규칙 (허니문 2인 전용)
+        //테마 인원 규칙
         int people = validatePeople(request.people(), theme);
 
-        //테마 최소 등급 (허니문, 효도는 그랜드 이상)
+        //테마 최소 등급
         ProductGrade grade = productGradeRepository
                 .findByIdAndProduct_Id(request.productGradeId(), product.getId())
                 .orElseThrow(() -> badRequest("INVALID_GRADE", "해당 상품의 등급이 아닙니다."));
@@ -63,7 +62,7 @@ public class PriceService {
         addSingle(items, optionMap, request.vehicleOptionId(), ProductOptionType.VEHICLE,
                 idOf(product.getDefaultVehicleOption()), people);
 
-        //등급 기본 음료(프리미엄 샴페인 등) + 고객 추가 음료
+        //음료 가격
         addDefaultDrink(items, optionMap, idOf(grade.getDefaultDrinkOption()), people);
         addDrinks(items, optionMap, request.drinks());
 
@@ -88,7 +87,7 @@ public class PriceService {
         return people;
     }
 
-    //호텔, 식사, 차량: 선택 안 하면 기본값, 바꾸면 기본값 대비 차액만 부과
+    //호텔, 식사, 차량 옵션 변경 시 차액 부과
     private void addSingle(List<PriceItem> items, Map<Long, ProductOption> optionMap, Long selectedId,
                            ProductOptionType type, Long defaultId, int people) {
         ProductOption defaultOption = defaultId == null ? null : optionMap.get(defaultId);
@@ -108,7 +107,7 @@ public class PriceService {
                 quantity, diff, chosen.getId().equals(defaultId)));
     }
 
-    //등급 기본 음료 (0원, 기본 포함)
+    //기본 음료
     private void addDefaultDrink(List<PriceItem> items, Map<Long, ProductOption> optionMap,
                                  Long defaultDrinkId, int people) {
         if (defaultDrinkId == null) {
@@ -120,7 +119,7 @@ public class PriceService {
         }
     }
 
-    //추가 음료 (샴페인, 커피 등)
+    //추가 음료
     private void addDrinks(List<PriceItem> items, Map<Long, ProductOption> optionMap,
                            List<PriceRequest.DrinkRequest> drinks) {
         if (drinks == null) {

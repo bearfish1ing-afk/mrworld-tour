@@ -15,7 +15,6 @@ import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.List;
 
-//출발 확정 / 재모집 / 출발 취소 처리
 @Service
 @RequiredArgsConstructor
 public class DepartureService {
@@ -31,7 +30,7 @@ public class DepartureService {
         int min = product.getMinPeople() == null ? DEFAULT_MIN_PEOPLE : product.getMinPeople();
         int current = product.getCurrentPeople() == null ? 0 : product.getCurrentPeople();
 
-        //신청 인원이 최소 인원 이상이면 출발 확정, 문자
+        //출발 확정, 문자 전송
         if (product.getStatus() == ProductStatus.RECRUITING && current >= min) {
             product.confirmDeparture();
             List<Reservation> pendings =
@@ -39,7 +38,7 @@ public class DepartureService {
             pendings.forEach(Reservation::confirm);
             eventPublisher.publishEvent(new DepartureConfirmedEvent(
                     product.getId(), pendings.stream().map(Reservation::getId).toList()));
-        //신청 인원 밑으로 내려가면 다시 모집 중
+            //재모집
         } else if (product.getStatus() == ProductStatus.CONFIRMED && current < min) {
             product.reopenRecruiting();
             reservationRepository.findByProductIdAndStatus(product.getId(), ReservationStatus.CONFIRMED)
@@ -47,7 +46,7 @@ public class DepartureService {
         }
     }
 
-    //이미 출발 확정된 상품에 새로 들어온 예약은 바로 확정, 문자
+    //이미 출발 확정된 상품에 새로 들어온 예약은 바로 확정되고 문자 전송
     @Transactional(propagation = Propagation.MANDATORY)
     public void confirmIfDepartureConfirmed(Product product, Reservation reservation) {
         if (product.getStatus() == ProductStatus.CONFIRMED
@@ -57,11 +56,10 @@ public class DepartureService {
         }
     }
 
-    //모집 마감 스케줄러용: 마감일이 지났는데 아직 모집 중(최소 인원 미달)이면 출발 취소
     @Transactional
     public boolean cancelIfUnderfilled(Long productId) {
         Product product = lockProduct(productId);
-        // 조회와 잠금 사이에 인원이 차서 확정됐을 수 있으므로 다시 확인
+        // 재확인
         if (product.getStatus() != ProductStatus.RECRUITING
                 || product.getDeadline() == null
                 || !LocalDateTime.now().isAfter(product.getDeadline())) {
@@ -71,7 +69,6 @@ public class DepartureService {
         return true;
     }
 
-    //관리자 출발 취소: 남은 예약 일괄 취소 + 문자, 취소된 예약 수 반환
     @Transactional
     public int cancelByAdmin(Long productId) {
         Product product = lockProduct(productId);

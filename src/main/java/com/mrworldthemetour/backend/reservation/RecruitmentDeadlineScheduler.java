@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.util.List;
 
-//마감일이 지났는데 최소 인원 미달인 상품은 출발 취소 + 예약 일괄 취소 + 문자
+//마감 시점에 출발 인원 미달 시 일괄 취소, 문자 전송
 @Slf4j
 @Component
 @RequiredArgsConstructor

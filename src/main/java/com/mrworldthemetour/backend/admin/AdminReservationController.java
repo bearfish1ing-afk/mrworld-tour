@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-// 관리자 예약 관리 API (/api/admin/** 는 SecurityConfig에서 ADMIN 권한 필요)
+// 관리자 예약 관리 API (SecurityConfig에서 ADMIN 권한 검사)
 @RestController
 @RequestMapping("/api/admin/reservations")
 @RequiredArgsConstructor

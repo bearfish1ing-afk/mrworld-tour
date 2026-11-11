@@ -118,7 +118,7 @@ public class Reservation {
         this.status = ReservationStatus.CONFIRMED;
     }
 
-    //상품 인원이 최소 인원 밑으로 내려가면 다시 확정 대기
+    //상품 인원이 최소 인원 밑으로 내려갈 경우, 다시 확정 대기
     public void revertToPending() {
         if (status == ReservationStatus.CANCELED) {
             throw conflict("CANNOT_REVERT", "취소된 예약은 되돌릴 수 없습니다.");
@@ -126,7 +126,7 @@ public class Reservation {
         this.status = ReservationStatus.PENDING;
     }
 
-    //확정 대기/확정 모두 변경 가능 (마감일 검사는 서비스에서)
+    //마감일 이전에 옵션 변경 가능 (서비스에서 마감일 검사)
     public void changeSelection(Long productGradeId, Integer people, String vehicle,
                                 Long baseAmount, Long optionAmount,
                                 Long discountAmount, Long finalAmount) {

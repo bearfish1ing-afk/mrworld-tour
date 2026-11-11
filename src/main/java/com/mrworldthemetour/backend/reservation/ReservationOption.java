@@ -31,11 +31,11 @@ public class ReservationOption {
     @Column(nullable = false)
     private Integer quantity;
 
-    // 이 항목의 총 추가 금액 (단가 × 수량)
+    // 총 추가 금액 (단가*수량)
     @Column(nullable = false)
     private Long extraPrice;
 
-    //기본 옵션인지(true), 고객이 바꾼 옵션인지
+    //기본 옵션과 고객 변경 옵션 구분
     @Column(name = "is_default")
     private Boolean defaultSelected;
 

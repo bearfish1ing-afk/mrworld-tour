@@ -13,7 +13,7 @@ public final class ProductDto {
             Long id,
             String name,
             String description,
-            VehicleType defaultVehicle, // [수정] 테마 기본 차량 (고정 enum)
+            VehicleType defaultVehicle,
             TravelGrade minGrade,
             Integer fixedPeople
     ) {
@@ -129,11 +129,10 @@ public final class ProductDto {
     ) {
     }
 
-    // [수정] 호텔/차량은 종류가 고정(enum)이라 가격만 입력, 이름과 요금 규칙은 자동
-    //  - HOTEL  : hotelLevel(STAR_3/4/5) + extraPrice            (1인당)
-    //  - VEHICLE: vehicleType + extraPrice                       (예약당)
-    //  - MEAL   : mealType(LUNCHBOX/LOCAL_RESTAURANT/FINE_DINING) + extraPrice (1인당)
-    //  - DRINK  : optionName + extraPrice + applyRule (프리미엄을 팔면 "샴페인" 필수)
+    //  HOTEL  : hotelLevel(STAR_3/4/5) + extraPrice            (1인당)
+    //  VEHICLE: vehicleType + extraPrice                       (예약당)
+    //  MEAL   : mealType(LUNCHBOX/LOCAL_RESTAURANT/FINE_DINING) + extraPrice (1인당)
+    //  DRINK  : optionName + extraPrice + applyRule (등급별 상품 요구사항)
     public record OptionCreateRequest(
             @jakarta.validation.constraints.NotNull
             ProductOptionType optionType,
@@ -157,7 +156,6 @@ public final class ProductDto {
             @jakarta.validation.constraints.NotNull
             @jakarta.validation.constraints.PositiveOrZero Long extraPrice,
             boolean defaultGrade
-            // [수정] hotelOptionIndex 삭제: 기본 호텔/식사/음료는 등급으로 자동 결정
     ) {}
 
     public record CreateRequest(

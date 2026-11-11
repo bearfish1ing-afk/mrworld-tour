@@ -51,8 +51,7 @@ public class AuthService {
 
         String passwordHash = passwordEncoder.encode(request.password());
 
-        // 인증된 전화번호와 가입 전화번호가 같은지 확인하고 증표를 한 번만 사용하도록 처리
-        // 인증 API 확정되었을 때 여기서 인증 실패하면 예외 발생
+        // 인증된 전화번호와 가입 전화번호가 같은지 확인
         signupProofVerifier.verifyAndConsume(
                 request.signupProof(),
                 phoneNum
@@ -67,7 +66,6 @@ public class AuthService {
                 request.address().strip()
         );
 
-        //변경사항 DB에 바로 반영
         User savedUser = userRepository.saveAndFlush(user);
 
         return new AuthDto.SignupResponse(
@@ -199,4 +197,4 @@ public class AuthService {
     } //관리자 로그인
 }
 
-// 로그아웃 프론트에서 처리
+// 로그아웃은 프론트에서 처리함

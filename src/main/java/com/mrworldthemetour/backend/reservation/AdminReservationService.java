@@ -77,7 +77,7 @@ public class AdminReservationService {
         );
     }
 
-    // 관리자 옵션 변경 (등급, 숙소, 식사, 차량, 음료, 인원) - 마감일 이후에도 가능
+    // 관리자 옵션 변경, 마감일 이후에도 가능
     @Transactional
     public AdminReservationDto.Detail change(Long reservationId, ReservationChangeRequest request) {
         Reservation r = find(reservationId);

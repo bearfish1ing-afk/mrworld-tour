@@ -17,10 +17,10 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ProductService {
-    //기본값 : 모집 중인 상태
+    //기본값
     private static final List<ProductStatus> PUBLIC_STATUSES = List.of(
             ProductStatus.RECRUITING, ProductStatus.CONFIRMED);
-    // [추가] 요구사항: 신청 인원 3명 이상이면 출발 확정
+    //신청 인원 3명 이상이면 출발 확정
     private static final int MIN_DEPARTURE_PEOPLE = 3;
 
     private final ThemeRepository themeRepository;
@@ -122,7 +122,7 @@ public class ProductService {
         );
     } //단일 여행 상품 조회
 
-    // [추가] 관리자 상품 목록 (DRAFT 등 비공개 상태 포함)
+    // 관리자용 여행상품 목록
     public ProductDto.PageResponse getProductsForAdmin(int page, int size) {
         if (page < 0 || size < 1 || size > 100) {
             throw invalidSearch("페이지는 0 이상, 페이지 크기는 1~100이어야 합니다.");
@@ -139,7 +139,7 @@ public class ProductService {
         );
     }
 
-    // [추가] 관리자 판매 상태 변경 (판매 시작, 판매 중지 등. 출발 취소는 DepartureService)
+    // 여행 상품 판매 상태 변경
     @Transactional
     public void changeStatus(Long productId, ProductStatus status) {
         try {
@@ -154,25 +154,22 @@ public class ProductService {
         Product product = requireProduct(productId);
         ProductOption option;
         if (request.optionType() == ProductOptionType.HOTEL) {
-            // [수정] 호텔: 고정 등급 + 가격만
             if (request.hotelLevel() == null) {
                 throw invalidSearch("호텔 등급(STAR_3, STAR_4, STAR_5)을 선택해 주세요.");
             }
             option = ProductOption.hotel(product, request.hotelLevel(), request.extraPrice());
         } else if (request.optionType() == ProductOptionType.VEHICLE) {
-            // [수정] 차량: 고정 종류 + 가격만
             if (request.vehicleType() == null) {
                 throw invalidSearch("차량 종류를 선택해 주세요.");
             }
             option = ProductOption.vehicle(product, request.vehicleType(), request.extraPrice());
         } else if (request.optionType() == ProductOptionType.MEAL) {
-            // [수정] 식사: 고정 종류 + 가격만 (이름 자동, 1인당)
             if (request.mealType() == null) {
                 throw invalidSearch("식사 종류(LUNCHBOX, LOCAL_RESTAURANT, FINE_DINING)를 선택해 주세요.");
             }
             option = ProductOption.meal(product, request.mealType(), request.extraPrice());
         } else if (request.optionType() == ProductOptionType.DRINK) {
-            // [수정] 음료: 이름 자유 입력 (샴페인, 커피 등)
+            //음료 이름은 관리자가 지정함
             if (request.optionName() == null || request.optionName().isBlank() || request.applyRule() == null) {
                 throw invalidSearch("음료는 이름과 요금 적용 규칙이 필요합니다.");
             }
@@ -190,7 +187,7 @@ public class ProductService {
                 || !request.deadline().isBefore(request.departureDate().atStartOfDay())) {
             throw invalidSearch("상품 일정 또는 정원 설정을 확인해 주세요.");
         }
-        // [추가] 요구사항: 신청 인원 3명 이상이면 출발 확정
+
         if (request.minPeople() != MIN_DEPARTURE_PEOPLE) {
             throw invalidSearch("최소 출발 인원은 " + MIN_DEPARTURE_PEOPLE + "명입니다.");
         }
@@ -199,7 +196,7 @@ public class ProductService {
         if (theme.getDefaultVehicle() == null) {
             throw invalidSearch("테마의 기본 차량이 설정되어 있지 않습니다.");
         }
-        // [수정] 기본 차량: 요청에 테마 기본 차량이 있으면 그 가격, 없으면 0원으로 자동 생성
+
         Integer vehicleIndex = findVehicleIndex(request, theme.getDefaultVehicle());
         if (theme.getFixedPeople() != null && theme.getFixedPeople() > request.maxPeople()) {
             throw invalidSearch("상품 정원은 테마의 고정 예약 인원 이상이어야 합니다.");
@@ -217,10 +214,10 @@ public class ProductService {
             if (!selected.satisfies(theme.getMinGrade())) {
                 throw invalidSearch("테마의 최소 여행 등급보다 낮은 등급은 등록할 수 없습니다.");
             }
-            resolveHotelIndex(request, selected); // [수정] 등급에 맞는 호텔(3/4/5등급)이 있는지
-            resolveMealIndex(request, selected);  // [수정] 등급에 맞는 식사(도시락/현지식/고급)가 있는지
+            resolveHotelIndex(request, selected); // 호텔 제약 검증
+            resolveMealIndex(request, selected);  // 식사 제약 검증
             if (selected == TravelGrade.PREMIUM) {
-                resolvePremiumDrinkIndex(request); // [수정] 프리미엄만 기본 음료(샴페인) 필수
+                resolvePremiumDrinkIndex(request); // 음료 제약 검증
             }
         }
         Product product = productRepository.save(new Product(theme, request.productCode(),
@@ -236,7 +233,6 @@ public class ProductService {
                 : productOptionRepository.save(ProductOption.vehicle(product, theme.getDefaultVehicle(), 0L));
         product.changeDefaultVehicleOption(defaultVehicle);
 
-        // [추가] 테마 기념품을 상품에 복사 (예약 시 이 물품이 인원 수만큼 배정)
         product.assignSouvenirItem(theme.getSouvenirItem());
 
         for (var input : request.grades()) {
@@ -251,7 +247,6 @@ public class ProductService {
         return product.getId();
     } //여행 상품 생성
 
-    // [수정] 등급에 맞는 기본 식사 옵션 위치 (클래식 도시락, 그랜드 현지식 레스토랑, 프리미엄 고급 레스토랑)
     private int resolveMealIndex(ProductDto.CreateRequest request, TravelGrade grade) {
         MealType type = MealType.forGrade(grade);
         Integer matched = null;
@@ -270,7 +265,6 @@ public class ProductService {
         return matched;
     }
 
-    // [추가] 프리미엄 기본 음료(샴페인) 옵션 위치
     private int resolvePremiumDrinkIndex(ProductDto.CreateRequest request) {
         String name = ProductGrade.PREMIUM_DEFAULT_DRINK;
         Integer matched = null;
@@ -290,7 +284,6 @@ public class ProductService {
         return matched;
     }
 
-    // [추가] 등급에 맞는 기본 호텔 옵션 위치 (클래식 3등급, 그랜드 4등급, 프리미엄 5등급)
     private int resolveHotelIndex(ProductDto.CreateRequest request, TravelGrade grade) {
         HotelLevel level = HotelLevel.forGrade(grade);
         Integer matched = null;
@@ -309,7 +302,6 @@ public class ProductService {
         return matched;
     }
 
-    // [추가] 테마 기본 차량 옵션 위치 (없으면 null → 0원으로 자동 생성)
     private Integer findVehicleIndex(ProductDto.CreateRequest request, VehicleType type) {
         Integer matched = null;
         for (int i = 0; i < request.options().size(); i++) {

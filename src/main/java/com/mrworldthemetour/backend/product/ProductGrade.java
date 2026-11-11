@@ -38,23 +38,22 @@ public class ProductGrade {
     private ProductOption defaultMealOption;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    // [수정] 기본 음료는 프리미엄(샴페인)만. 클래식, 그랜드는 null
+
+    //프리미엄은 샴페인 기본으로 제공
     @JoinColumn(name = "default_drink_option_id")
     private ProductOption defaultDrinkOption;
 
-    // 프리미엄 기본 음료 이름 (요구사항: 프리미엄은 스테이크와 샴페인 제공)
     public static final String PREMIUM_DEFAULT_DRINK = "샴페인";
 
-    // drink: 프리미엄이면 샴페인 옵션 필수, 클래식/그랜드는 null
     public void initializeDefaultOptions(ProductOption hotel, ProductOption meal, ProductOption drink) {
         validateDefault(hotel, ProductOptionType.HOTEL);
         validateDefault(meal, ProductOptionType.MEAL);
         TravelGrade travelGrade = TravelGrade.valueOf(grade);
-        // 요구사항: 클래식 3등급, 그랜드 4등급, 프리미엄 5등급 호텔
+
         if (hotel.getHotelLevel() != HotelLevel.forGrade(travelGrade)) {
             throw new IllegalArgumentException("호텔 등급이 여행 등급과 일치해야 합니다.");
         }
-        // [수정] 요구사항: 클래식 도시락, 그랜드 현지식 레스토랑, 프리미엄 고급 레스토랑
+
         if (meal.getMealType() != MealType.forGrade(travelGrade)) {
             throw new IllegalArgumentException("식사 종류가 여행 등급과 일치해야 합니다.");
         }

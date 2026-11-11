@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-// 상품 기념품 재고 배정/복구 (상품 생성 시 테마의 기념품이 상품에 복사됨)
+// 상품 기념품 재고 배정/복구
 @Service
 @RequiredArgsConstructor
 public class SouvenirService {
@@ -17,8 +17,6 @@ public class SouvenirService {
     private final StockHistoryRepository stockHistoryRepository;
 
     @Transactional(propagation = Propagation.MANDATORY)
-    // target: 신청 = 인원 수, 인원 변경 = 새 인원 수, 취소 = 0
-    // 이미 배정된 물품이 있으면 그 물품 기준으로 배정/복구
     public void adjust(Reservation reservation, Item souvenirItem, int target) {
         Long itemId = reservation.getSouvenirItemId();
         if (itemId == null) {

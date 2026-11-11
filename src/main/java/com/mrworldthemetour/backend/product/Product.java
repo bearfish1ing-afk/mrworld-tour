@@ -28,7 +28,7 @@ public class Product {
     @JoinColumn(name = "default_vehicle_option_id")
     private ProductOption defaultVehicleOption;
 
-    // [추가] 상품 기념품: 상품 생성 시 테마의 기념품이 복사됨 (예약 시 인원 수만큼 재고에서 배정)
+    // 상품 생성 시 테마에 맞는 기념품 배정
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "souvenir_item_id")
     private Item souvenirItem;
@@ -136,20 +136,18 @@ public class Product {
         this.updatedAt = LocalDateTime.now();
     }
 
-    // 예약 신청,변경,취소 시 신청 인원 변경 (양수: 증가, 음수: 감소)
     public void changePeople(int delta) {
         int current = this.currentPeople == null ? 0 : this.currentPeople;
         this.currentPeople = Math.max(current + delta, 0);
     }
 
-    // 신청 인원이 최소 인원 이상이 되면 출발 확정
     public void confirmDeparture() {
         if (this.status == ProductStatus.RECRUITING) {
             this.status = ProductStatus.CONFIRMED;
         }
     }
 
-    // 취소로 최소 인원 밑이 되면 다시 모집 중
+    // 신청 인원이 출발 인원 미만이 되면 다시 모집 중 상태로 전환
     public void reopenRecruiting() {
         if (this.status == ProductStatus.CONFIRMED) {
             this.status = ProductStatus.RECRUITING;
@@ -161,7 +159,6 @@ public class Product {
         this.status = ProductStatus.CANCELED;
     }
 
-    //관리자 판매 상태 변경
     public void changeStatus(ProductStatus status) {
         if (status == null || status == ProductStatus.CONFIRMED || status == ProductStatus.CANCELED) {
             throw new IllegalArgumentException("변경할 수 없는 상품 상태입니다.");

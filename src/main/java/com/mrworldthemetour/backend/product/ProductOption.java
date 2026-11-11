@@ -33,7 +33,6 @@ public class ProductOption {
     @Column(name = "apply_rule", length = 20)
     private String applyRule;
 
-    // [수정] 호텔은 고정 등급(enum)으로 관리, 주소는 받지 않음
     @Enumerated(EnumType.STRING)
     @Column(name = "hotel_level", length = 20)
     private HotelLevel hotelLevel;
@@ -41,21 +40,17 @@ public class ProductOption {
     @Column(name = "hotel_rating")
     private Integer hotelRating;
 
-    // [추가] 차량은 고정 종류(enum)로 관리
     @Enumerated(EnumType.STRING)
     @Column(name = "vehicle_type", length = 30)
     private VehicleType vehicleType;
 
-    // [추가] 식사는 고정 종류(enum)로 관리
     @Enumerated(EnumType.STRING)
     @Column(name = "meal_type", length = 30)
     private MealType mealType;
 
-    // 식사 단계 (1 도시락, 2 현지식 레스토랑, 3 고급 레스토랑). 음료는 사용하지 않음
     @Column(name = "service_level")
     private Integer serviceLevel;
 
-    // [수정] 식사: 이름은 식사 라벨로 자동, 1인당 요금
     public static ProductOption meal(Product product, MealType type, Long price) {
         if (type == null) {
             throw new IllegalArgumentException("식사 종류(LUNCHBOX/LOCAL_RESTAURANT/FINE_DINING)가 필요합니다.");
@@ -67,7 +62,6 @@ public class ProductOption {
         return option;
     }
 
-    // [수정] 음료: 이름 자유 입력 (샴페인, 커피 등)
     public static ProductOption drink(Product product, String name, Long price, String rule) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("음료 이름이 필요합니다.");
@@ -75,7 +69,6 @@ public class ProductOption {
         return new ProductOption(product, ProductOptionType.DRINK, name.strip(), price, rule);
     }
 
-    // [수정] 호텔: 이름은 등급 라벨로 자동, 1인당 요금
     public static ProductOption hotel(Product product, HotelLevel level, Long price) {
         if (level == null) {
             throw new IllegalArgumentException("호텔 등급(STAR_3/4/5)이 필요합니다.");
@@ -87,7 +80,6 @@ public class ProductOption {
         return option;
     }
 
-    // [추가] 차량: 이름은 차량 라벨로 자동, 예약당 요금
     public static ProductOption vehicle(Product product, VehicleType type, Long price) {
         if (type == null) {
             throw new IllegalArgumentException("차량 종류가 필요합니다.");
@@ -115,3 +107,5 @@ public class ProductOption {
         this.applyRule = applyRule;
     }
 }
+
+//호텔, 식사, 차량은 enum으로 저장

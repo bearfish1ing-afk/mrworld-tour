@@ -15,9 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-// 요구사항의 테마 4개(ID 1~4 고정) + 테마별 기념품을 서버 시작 시 등록 (이미 있으면 건너뜀)
-// 기념품: 허니문 커플 기념티, 효도 건강 인삼, 골프 골프공, 트레킹 스카프
-// 프론트는 테마 ID를 1~4로 고정해서 사용
 @Component
 @RequiredArgsConstructor
 public class ThemeDataInitializer implements ApplicationRunner {

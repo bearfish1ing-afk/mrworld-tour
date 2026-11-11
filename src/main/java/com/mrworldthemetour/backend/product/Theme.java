@@ -23,7 +23,6 @@ public class Theme {
     @Column(name = "description", length = 255)
     private String description;
 
-    // [수정] 테마 기본 차량 (고정 enum). 상품 생성 시 이 차량이 기본 차량 옵션이 됨
     @Enumerated(EnumType.STRING)
     @Column(name = "default_vehicle", length = 100)
     private VehicleType defaultVehicle;
@@ -35,8 +34,6 @@ public class Theme {
     @Column(name = "fixed_people")
     private Integer fixedPeople;
 
-    // 테마 기념품 (요구사항 고정: 허니문 커플 기념티, 효도 건강 인삼, 골프 골프공, 트레킹 스카프)
-    // 상품 생성 시 이 값이 상품에 복사되고, 예약 시 상품의 기념품이 인원 수만큼 배정됨
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "souvenir_item_id")
     private Item souvenirItem;

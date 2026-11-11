@@ -1,7 +1,5 @@
 package com.mrworldthemetour.backend.product;
 
-// 호텔 등급 (요구사항으로 고정): 클래식 3등급, 그랜드 4등급, 프리미엄 5등급
-// 직원은 상품마다 등급별 가격만 입력하고, 고객은 다른 등급으로 변경 가능 (차액 부과)
 public enum HotelLevel {
     STAR_3(3, "3등급 호텔"),
     STAR_4(4, "4등급 호텔"),
