@@ -18,7 +18,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     Optional<Reservation> findByIdAndUserId(Long id, Long userId);
 
     //예약 목록 (최근 순)
-    List<Reservation> findByUserIdOrderByReservedAtDesc(Long userId);
+    List<Reservation> findByUserIdAndStatusOrderByReservedAtDesc(Long userId, ReservationStatus status);
 
     //출발 확정 / 재모집 시 상품의 예약들
     List<Reservation> findByProductIdAndStatus(Long productId, ReservationStatus status);
