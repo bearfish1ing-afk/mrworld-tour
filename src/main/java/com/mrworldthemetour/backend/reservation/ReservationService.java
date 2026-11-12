@@ -133,7 +133,7 @@ public class ReservationService {
     //내 예약 목록(로그인 팝업용, 최근 순)
     @Transactional(readOnly = true)
     public List<ReservationListResponse> getMyReservation(Long userId) {
-        List<Reservation> list = reservationRepository.findByUserIdOrderByReservedAtDesc(userId);
+        List<Reservation> list = reservationRepository.findByUserIdAndStatusOrderByReservedAtDesc(userId,ReservationStatus.CONFIRMED);
 
         List<Long> productIds = list.stream().map(Reservation::getProductId).distinct().toList();
         Map<Long, Product> products = new HashMap<>();

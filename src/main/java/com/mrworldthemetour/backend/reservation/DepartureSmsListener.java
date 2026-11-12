@@ -34,15 +34,6 @@ public class DepartureSmsListener {
                         + r.getReservationCode());
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onDepartureCanceled(DepartureCanceledEvent event) {
-        send(event.productId(), event.reservationIds(), (user, product, r) ->
-                "[미스터월드] " + user.getName() + "님, '" + product.getTitle() + "' ("
-                        + product.getDepartureDate() + " 출발) 여행이 " + event.reason()
-                        + " 출발 취소되었습니다. 예약번호 " + r.getReservationCode()
-                        + ". 결제 금액 환불은 별도로 안내드리겠습니다.");
-    }
-
     private void send(Long productId, List<Long> reservationIds, MessageBuilder builder) {
         if (reservationIds == null || reservationIds.isEmpty()) {
             return;
