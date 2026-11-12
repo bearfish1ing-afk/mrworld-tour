@@ -39,7 +39,7 @@ public class DepartureService {
             pendings.forEach(Reservation::confirm);
             eventPublisher.publishEvent(new DepartureConfirmedEvent(
                     product.getId(), pendings.stream().map(Reservation::getId).toList()));
-        //신청 인원 밑으로 내려가면 다시 모집 중
+            //신청 인원 밑으로 내려가면 다시 모집 중
         } else if (product.getStatus() == ProductStatus.CONFIRMED && current < min) {
             product.reopenRecruiting();
             reservationRepository.findByProductIdAndStatus(product.getId(), ReservationStatus.CONFIRMED)
@@ -67,11 +67,11 @@ public class DepartureService {
                 || !LocalDateTime.now().isAfter(product.getDeadline())) {
             return false;
         }
-        cancelAll(product, "최소 출발 인원 미달로");
+        cancelAll(product);
         return true;
     }
 
-    //관리자 출발 취소: 남은 예약 일괄 취소 + 문자, 취소된 예약 수 반환
+    //관리자 출발 취소: 남은 예약 일괄 취소, 취소된 예약 수 반환
     @Transactional
     public int cancelByAdmin(Long productId) {
         Product product = lockProduct(productId);
@@ -79,10 +79,10 @@ public class DepartureService {
             throw new BusinessException(HttpStatus.CONFLICT, "CANNOT_CANCEL_DEPARTURE",
                     "이미 취소되었거나 완료된 상품입니다.");
         }
-        return cancelAll(product, "여행사 사정으로");
+        return cancelAll(product);
     }
 
-    private int cancelAll(Product product, String reason) {
+    private int cancelAll(Product product) {
         List<Reservation> targets = reservationRepository.findByProductIdAndStatusIn(
                 product.getId(), EnumSet.of(ReservationStatus.PENDING, ReservationStatus.CONFIRMED));
 
@@ -92,9 +92,6 @@ public class DepartureService {
             souvenirService.adjust(r, product.getSouvenirItem(), 0); // 배정했던 기념품 복구
         }
         product.cancelDeparture();
-
-        eventPublisher.publishEvent(new DepartureCanceledEvent(
-                product.getId(), targets.stream().map(Reservation::getId).toList(), reason));
         return targets.size();
     }
 
