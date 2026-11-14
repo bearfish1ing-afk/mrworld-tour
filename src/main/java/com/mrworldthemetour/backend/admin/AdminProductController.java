@@ -24,6 +24,11 @@ public class AdminProductController {
         return ResponseEntity.ok(productService.getProductsForAdmin(page, size));
     } //관리자 상품 목록 (비공개 상품 포함)
 
+    @GetMapping("/{productId}")
+    public ResponseEntity<ProductDto.DetailResponse> detail(@PathVariable("productId") Long productId) {
+        return ResponseEntity.ok(productService.getProductForAdmin(productId));
+    } //관리자 상품 상세 (모든 상태)
+
     @PostMapping
     public ResponseEntity<Map<String, Long>> create(@Valid @RequestBody ProductDto.CreateRequest request) {
         return ResponseEntity.status(201).body(Map.of("productId", productService.createProduct(request)));

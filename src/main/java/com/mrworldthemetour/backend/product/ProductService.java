@@ -94,7 +94,16 @@ public class ProductService {
                         "PRODUCT_NOT_FOUND",
                         "여행 상품을 찾을 수 없습니다."
                 ));
+        return toDetailResponse(product);
+    } //단일 여행 상품 조회
 
+    // 관리자용 상품 상세 (모집 마감, 출발 취소 등 모든 상태)
+    public ProductDto.DetailResponse getProductForAdmin(Long productId) {
+        return toDetailResponse(requireProduct(productId));
+    }
+
+    private ProductDto.DetailResponse toDetailResponse(Product product) {
+        Long productId = product.getId();
         List<ProductDto.GradeResponse> grades =
                 productGradeRepository
                         .findByProduct_IdOrderByExtraPriceAscIdAsc(productId)
@@ -120,7 +129,7 @@ public class ProductService {
                 product.getDefaultVehicleOption() == null ? null
                         : product.getDefaultVehicleOption().getId()
         );
-    } //단일 여행 상품 조회
+    }
 
     // 관리자용 여행상품 목록
     public ProductDto.PageResponse getProductsForAdmin(int page, int size) {

@@ -1,5 +1,7 @@
-import React, { useState, type FormEvent } from "react";
+import React, { useState, type FormEvent, type ReactNode } from "react";
 import { assets } from "../types/admin";
+import { adminLogin, adminSignup, requestSmsCode, verifySmsCode } from "../api/admin";
+import { errorMessage, setSession } from "../api/client";
 
 function AdminBrand() {
   return (
@@ -44,18 +46,37 @@ function AdminAuthHeader({
 }
 
 export function AdminLogin({
+  notice,
   onLoginSuccess,
   onGoSignup,
 }: {
+  notice?: string;
   onLoginSuccess: (name: string) => void;
   onGoSignup: () => void;
 }) {
-  const [email, setEmail] = useState("admin@misterworld.com");
-  const [password, setPassword] = useState("admin1234!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const submit = (e: FormEvent) => {
+  // 관리자 로그인 API 호출 → 토큰 저장
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
-    onLoginSuccess("최고관리자");
+    if (!email.trim() || !password) {
+      setError("아이디와 비밀번호를 입력해 주세요.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await adminLogin(email.trim(), password);
+      setSession(res.accessToken, email.trim());
+      onLoginSuccess(email.trim());
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -67,7 +88,8 @@ export function AdminLogin({
             <label className="mb-[30px] block font-['EB_Garamond:Regular'] text-xl">
               아이디 (이메일)
               <input
-                type="text"
+                type="email"
+                autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="아이디를 입력해주세요."
@@ -84,11 +106,17 @@ export function AdminLogin({
                 className="mt-2.5 h-[50px] w-full border border-black bg-white px-5 text-base outline-none focus:border-[#1596b4]"
               />
             </label>
+            {(error || notice) && (
+              <p role="alert" className="mb-4 text-center text-sm font-medium text-[#c33]">
+                {error || notice}
+              </p>
+            )}
             <button
               type="submit"
-              className="h-[50px] w-full rounded-[10px] bg-[#1596b4] text-lg font-bold text-white hover:bg-[#117f99] transition cursor-pointer"
+              disabled={loading}
+              className="h-[50px] w-full rounded-[10px] bg-[#1596b4] text-lg font-bold text-white hover:bg-[#117f99] transition cursor-pointer disabled:opacity-60"
             >
-              로그인
+              {loading ? "로그인 중..." : "로그인"}
             </button>
             <button
               type="button"
@@ -119,8 +147,8 @@ type SignupForm = {
   employeeCode: string;
 };
 
+// 직원용 인증번호: 지금은 화면에서만 확인해요 (백엔드 관리자 가입 API는 아직 검사하지 않음)
 const issuedEmployeeCode = "MW-STAFF-2026";
-const demoPhoneCode = "123456";
 
 const signupInput =
   "h-12 w-full rounded-[4px] border border-[#9a9a9a] bg-white px-3.5 font-['42dot_Sans:Regular'] text-[15px] outline-none placeholder:text-[#8a8a8a] focus:border-[#1596b4]";
@@ -271,6 +299,9 @@ export function AdminSignup({
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [employeeVerified, setEmployeeVerified] = useState(false);
   const [message, setMessage] = useState("");
+  const [smsRequestId, setSmsRequestId] = useState("");
+  const [signupProof, setSignupProof] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState<SignupForm>({
     name: "",
@@ -289,22 +320,51 @@ export function AdminSignup({
     setForm((current) => ({ ...current, [field]: value }));
     setMessage("");
     if (field === "verificationCode") setPhoneVerified(false);
+    if (field === "phone") {
+      setPhoneCodeRequested(false);
+      setPhoneVerified(false);
+      setSignupProof("");
+    }
     if (field === "employeeCode") setEmployeeVerified(false);
   };
 
-  const requestPhoneCode = () => {
+  // 문자 인증번호 요청 (백엔드가 Solapi로 실제 문자 발송)
+  const requestPhoneCode = async () => {
     if (!form.name || !form.birthDate || !form.carrier || !form.phone) {
       setMessage("이름, 생년월일, 통신사, 휴대폰 번호를 먼저 입력해 주세요.");
       return;
     }
-    setPhoneCodeRequested(true);
-    setMessage(`인증번호가 발송되었습니다. 데모 인증번호는 ${demoPhoneCode}입니다.`);
+    setLoading(true);
+    try {
+      const res = await requestSmsCode(form.phone);
+      setSmsRequestId(res.requestId);
+      setPhoneCodeRequested(true);
+      setMessage("인증번호가 발송되었습니다. 3분 안에 입력해 주세요.");
+    } catch (err) {
+      setMessage(errorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const verifyPhone = () => {
-    const valid = phoneCodeRequested && form.verificationCode === demoPhoneCode;
-    setPhoneVerified(valid);
-    setMessage(valid ? "휴대폰 본인 인증이 완료되었습니다." : "인증번호를 확인해 주세요.");
+  // 인증번호 확인 → 회원가입에 쓸 signupProof 받기
+  const verifyPhone = async () => {
+    if (!phoneCodeRequested || !smsRequestId) {
+      setMessage("인증번호를 먼저 요청해 주세요.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await verifySmsCode(smsRequestId, form.verificationCode);
+      setSignupProof(res.signupProof);
+      setPhoneVerified(true);
+      setMessage("휴대폰 본인 인증이 완료되었습니다.");
+    } catch (err) {
+      setPhoneVerified(false);
+      setMessage(errorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const verifyEmployee = () => {
@@ -313,6 +373,27 @@ export function AdminSignup({
     setMessage(
       valid ? "직원 인증이 완료되었습니다." : "유효하지 않은 직원용 인증번호입니다.",
     );
+  };
+
+  // 관리자 회원가입 API 호출
+  const submitSignup = async () => {
+    setLoading(true);
+    try {
+      await adminSignup({
+        email: form.email.trim(),
+        password: form.password,
+        phoneNum: form.phone,
+        name: form.name.trim(),
+        nickname: null,
+        address: form.address.trim(),
+        signupProof,
+      });
+      setStep(4);
+    } catch (err) {
+      setMessage(errorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const next = () => {
@@ -348,9 +429,9 @@ export function AdminSignup({
       if (
         !form.address ||
         !form.email ||
-        !/^(?=.*[A-Za-z])(?=.*\d).{10,}$/.test(form.password)
+        !/^(?=.*[A-Za-z])(?=.*\d)[\x21-\x7E]{10,20}$/.test(form.password)
       ) {
-        setMessage("회원 정보를 모두 입력하고 비밀번호 조건(영문·숫자 포함 10자 이상)을 확인해 주세요.");
+        setMessage("회원 정보를 모두 입력하고 비밀번호 조건(영문·숫자 포함 10~20자, 공백 없음)을 확인해 주세요.");
         return;
       }
       if (!form.passwordConfirmation) {
@@ -365,7 +446,7 @@ export function AdminSignup({
         setMessage("회사에서 발급한 직원용 인증번호를 확인해 주세요.");
         return;
       }
-      setStep(4);
+      void submitSignup();
     }
   };
 
@@ -478,7 +559,8 @@ export function AdminSignup({
                       <button
                         type="button"
                         onClick={requestPhoneCode}
-                        className="w-[136px] shrink-0 rounded-md bg-[#1596b4] text-sm font-semibold text-white hover:bg-[#117f99] cursor-pointer"
+                        disabled={loading}
+                        className="w-[136px] shrink-0 rounded-md bg-[#1596b4] text-sm font-semibold text-white hover:bg-[#117f99] cursor-pointer disabled:opacity-60"
                       >
                         인증번호 요청
                       </button>
@@ -575,7 +657,7 @@ export function AdminSignup({
                       autoComplete="new-password"
                       className={signupInput}
                     />
-                    <p className="mt-2 text-sm text-[#666]">영문자, 숫자를 포함 10글자 이상</p>
+                    <p className="mt-2 text-sm text-[#666]">영문자, 숫자를 포함 10~20글자</p>
                   </SignupField>
                   <SignupField label="비밀번호 확인">
                     <input
@@ -622,9 +704,6 @@ export function AdminSignup({
                         {employeeVerified ? "인증 완료" : "직원 인증"}
                       </button>
                     </div>
-                    <p className="mt-2 text-xs text-[#666]">
-                      데모용 직원 인증번호: {issuedEmployeeCode}
-                    </p>
                   </SignupField>
                 </div>
               </section>
@@ -652,7 +731,8 @@ export function AdminSignup({
               <button
                 type="button"
                 onClick={next}
-                className="h-[54px] w-[150px] rounded-md bg-[#1596b4] font-['42dot_Sans:SemiBold'] text-base font-semibold text-white hover:bg-[#117f99] sm:h-[61px] sm:w-[196px] cursor-pointer"
+                disabled={loading}
+                className="disabled:opacity-60 h-[54px] w-[150px] rounded-md bg-[#1596b4] font-['42dot_Sans:SemiBold'] text-base font-semibold text-white hover:bg-[#117f99] sm:h-[61px] sm:w-[196px] cursor-pointer"
               >
                 다음
               </button>

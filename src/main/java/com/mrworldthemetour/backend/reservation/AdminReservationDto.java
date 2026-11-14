@@ -46,8 +46,6 @@ public final class AdminReservationDto {
 
     public record MemoRequest(@Size(max = 1000) String memo) {}
 
-    public record SmsRequest(@NotBlank @Size(max = 1000) String text) {}
-
     public record PageResponse(List<Summary> content, int page, int size,
                                long totalElements, int totalPages) {}
 }

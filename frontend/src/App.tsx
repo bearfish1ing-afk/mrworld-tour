@@ -1,64 +1,36 @@
-import React, { useState } from "react";
-import type { Product, AdminSection } from "./types/admin";
+import React, { useEffect, useState } from "react";
+import type { AdminSection } from "./types/admin";
 import { AdminLogin, AdminSignup } from "./components/AdminAuth";
 import { AdminProductManagement } from "./components/AdminProductManagement";
 import { AdminReservationManagement } from "./components/AdminReservationManagement";
 import { AdminInventoryManagement } from "./components/AdminInventoryManagement";
-
-const initialProducts: Product[] = [
-  {
-    name: "일본 규슈 온천 효도여행 4일",
-    theme: "효도여행",
-    country: "일본",
-    grades: "클래식 / 프리미엄",
-    price: "1,290,000",
-    options: "숙소 · 식사 · 음료",
-    status: "판매 중",
-    date: "2026-10-02",
-    duration: "3박 4일",
-  },
-  {
-    name: "몰디브 아일랜드 허니문 6일",
-    theme: "허니문",
-    country: "몰디브",
-    grades: "프리미엄 / 그랜드",
-    price: "3,990,000",
-    options: "숙소 · 식사 · 음료",
-    status: "판매 중",
-    date: "2026-10-01",
-    duration: "5박 6일",
-  },
-  {
-    name: "스위스 알프스 힐링여행 7일",
-    theme: "힐링여행",
-    country: "스위스",
-    grades: "클래식 / 프리미엄",
-    price: "3,490,000",
-    options: "숙소 · 식사 · 음료",
-    status: "판매 중",
-    date: "2026-10-01",
-    duration: "6박 7일",
-  },
-  {
-    name: "이탈리아 미식 기행 8일",
-    theme: "미식여행",
-    country: "이탈리아",
-    grades: "그랜드 / 프리미엄",
-    price: "4,200,000",
-    options: "숙소 · 식사 · 음료",
-    status: "판매 중지",
-    date: "2026-09-28",
-    duration: "7박 8일",
-  },
-];
+import { clearSession, getSessionName, getToken, onUnauthorized } from "./api/client";
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(true); // 편의상 초기 진입 허용 (로그아웃 시 로그인 화면으로 이동)
+  // 저장된 토큰이 있으면 로그인 상태로 시작 (새로고침해도 유지, 탭을 닫으면 로그아웃)
+  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(getToken()));
   const [authView, setAuthView] = useState<"login" | "signup">("login");
-  const [adminName, setAdminName] = useState("최고관리자");
+  const [adminName, setAdminName] = useState(() => getSessionName() ?? "관리자");
   const [section, setSection] = useState<AdminSection>("products");
+  const [notice, setNotice] = useState("");
 
-  // 미인증 상태 시 피그마 로그인 / 회원가입 뷰 전환
+  // API가 401(토큰 만료)을 돌려주면 로그인 화면으로
+  useEffect(() => {
+    onUnauthorized(() => {
+      setIsLoggedIn(false);
+      setAuthView("login");
+      setNotice("로그인이 만료되었습니다. 다시 로그인해 주세요.");
+    });
+    return () => onUnauthorized(null);
+  }, []);
+
+  const logout = () => {
+    clearSession();
+    setIsLoggedIn(false);
+    setAuthView("login");
+    setNotice("");
+  };
+
   if (!isLoggedIn) {
     if (authView === "signup") {
       return (
@@ -70,8 +42,10 @@ export default function App() {
     }
     return (
       <AdminLogin
+        notice={notice}
         onLoginSuccess={(name) => {
           setAdminName(name);
+          setNotice("");
           setIsLoggedIn(true);
         }}
         onGoSignup={() => setAuthView("signup")}
@@ -79,33 +53,19 @@ export default function App() {
     );
   }
 
-  // 관리자 대시보드 탭 분기 (컴포넌트 import 방식)
   switch (section) {
     case "reservations":
       return (
-        <AdminReservationManagement
-          adminName={adminName}
-          onNavigate={setSection}
-          onLogout={() => setIsLoggedIn(false)}
-        />
+        <AdminReservationManagement adminName={adminName} onNavigate={setSection} onLogout={logout} />
       );
     case "inventory":
       return (
-        <AdminInventoryManagement
-          adminName={adminName}
-          onNavigate={setSection}
-          onLogout={() => setIsLoggedIn(false)}
-        />
+        <AdminInventoryManagement adminName={adminName} onNavigate={setSection} onLogout={logout} />
       );
     case "products":
     default:
       return (
-        <AdminProductManagement
-          productItems={initialProducts}
-          adminName={adminName}
-          onNavigate={setSection}
-          onLogout={() => setIsLoggedIn(false)}
-        />
+        <AdminProductManagement adminName={adminName} onNavigate={setSection} onLogout={logout} />
       );
   }
 }

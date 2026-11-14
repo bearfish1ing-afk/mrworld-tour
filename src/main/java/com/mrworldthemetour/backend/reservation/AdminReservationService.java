@@ -5,7 +5,6 @@ import com.mrworldthemetour.backend.inventory.Item;
 import com.mrworldthemetour.backend.inventory.ItemRepository;
 import com.mrworldthemetour.backend.product.Product;
 import com.mrworldthemetour.backend.product.ProductRepository;
-import com.mrworldthemetour.backend.sms.SmsService;
 import com.mrworldthemetour.backend.user.User;
 import com.mrworldthemetour.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +31,6 @@ public class AdminReservationService {
     private final UserRepository userRepository;
     private final ItemRepository itemRepository;
     private final ReservationService reservationService;
-    private final SmsService smsService;
     private final ApplicationEventPublisher eventPublisher;
 
     public AdminReservationDto.PageResponse search(Long productId, ReservationStatus status, int page, int size) {
@@ -104,14 +102,6 @@ public class AdminReservationService {
     @Transactional
     public void writeMemo(Long reservationId, String memo) {
         find(reservationId).writeAdminMemo(memo);
-    }
-
-    public void sendSms(Long reservationId, String text) {
-        Reservation r = find(reservationId);
-        User user = userRepository.findById(r.getUserId())
-                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
-                        "USER_NOT_FOUND", "예약자를 찾을 수 없습니다."));
-        smsService.sendText(user.getPhoneNum(), "[미스터월드] " + text);
     }
 
     private AdminReservationDto.Summary toSummary(Reservation r, Product p, User u) {

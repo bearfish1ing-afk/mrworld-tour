@@ -48,6 +48,24 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: 프론트 이미지 이름/태그 정하기
+        id: meta-web
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-web
+          tags: |
+            type=raw,value=latest
+            type=sha
+
+      - name: 프론트 이미지 빌드, 업로드
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.web
+          push: true
+          tags: ${{ steps.meta-web.outputs.tags }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
 
   deploy:
     needs: build

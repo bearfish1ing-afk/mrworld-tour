@@ -1,0 +1,13 @@
+# 1단계: 관리자 화면(React) 빌드
+FROM node:22-alpine AS builder
+WORKDIR /web
+RUN npm install -g pnpm@9
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY frontend/ ./
+RUN pnpm run build
+
+# 2단계: nginx가 빌드된 파일을 서빙하고 /api는 백엔드로 전달
+FROM nginx:1.30
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY --from=builder /web/dist /usr/share/nginx/html

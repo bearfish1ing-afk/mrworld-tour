@@ -88,4 +88,13 @@ public final class ItemDto {
             int totalPages
     ) {
     }
+
+    public record HistoryPageResponse(
+            List<HistoryResponse> content,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages
+    ) {
+    }
 }

@@ -52,12 +52,4 @@ public class AdminReservationController {
         adminReservationService.writeMemo(reservationId, request.memo());
         return ResponseEntity.noContent().build();
     } //관리자 메모
-
-    @PostMapping("/{reservationId}/sms")
-    public ResponseEntity<Void> sms(
-            @PathVariable("reservationId") Long reservationId,
-            @Valid @RequestBody AdminReservationDto.SmsRequest request) {
-        adminReservationService.sendSms(reservationId, request.text());
-        return ResponseEntity.noContent().build();
-    } //안내 문자 발송
 }

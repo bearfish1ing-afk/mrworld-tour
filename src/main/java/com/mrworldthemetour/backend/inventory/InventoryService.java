@@ -17,6 +17,29 @@ public class InventoryService {
     private final ItemRepository itemRepository;
     private final StockHistoryRepository stockHistoryRepository;
 
+    // 입출고 이력 (itemId가 없으면 전체, 최신순)
+    public ItemDto.HistoryPageResponse getHistory(Long itemId, int page, int size) {
+        if (page < 0 || size < 1 || size > 100) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_PAGE",
+                    "페이지는 0 이상, 페이지 크기는 1~100이어야 합니다."
+            );
+        }
+        PageRequest pageable = PageRequest.of(page, size);
+        Page<StockHistory> result = itemId == null
+                ? stockHistoryRepository.findAllByOrderByCreatedAtDescIdDesc(pageable)
+                : stockHistoryRepository.findByItem_IdOrderByCreatedAtDescIdDesc(itemId, pageable);
+
+        return new ItemDto.HistoryPageResponse(
+                result.getContent().stream().map(ItemDto.HistoryResponse::from).toList(),
+                result.getNumber(),
+                result.getSize(),
+                result.getTotalElements(),
+                result.getTotalPages()
+        );
+    }
+
     public ItemDto.PageResponse getItems(int page, int size) {
         if (page < 0 || size < 1 || size > 100) {
             throw new BusinessException(

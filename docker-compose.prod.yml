@@ -10,13 +10,23 @@ services:
       TZ: Asia/Seoul
     volumes:
       - mysql-data:/var/lib/mysql
+    #MySQL이 접속 가능해진 뒤에 백엔드를 띄우기 위한 상태 확인
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     restart: unless-stopped
 
   app:
     image: ghcr.io/bearfish1ing-afk/mrworld-tour:latest
     container_name: spring-container
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
+    #JWT, SMS, SOLAPI 키는 EC2의 .env에서 읽음
+    env_file:
+      - .env
     environment:
       SPRING_PROFILES_ACTIVE: local
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}?serverTimezone=Asia/Seoul
@@ -29,16 +39,13 @@ services:
     restart: unless-stopped
 
   nginx:
-    image: nginx:1.30
+    #관리자 화면 + nginx 설정이 들어 있는 이미지 (Dockerfile.web)
+    image: ghcr.io/bearfish1ing-afk/mrworld-tour-web:latest
     container_name: nginx-container
     ports:
       - "80:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-
     depends_on:
       - app
-    #      - web
     restart: unless-stopped
 
 volumes:

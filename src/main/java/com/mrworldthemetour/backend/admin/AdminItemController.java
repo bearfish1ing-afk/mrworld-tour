@@ -27,6 +27,15 @@ public class AdminItemController {
         );
     } //전체 상품 목록 조회
 
+    @GetMapping("/history")
+    public ResponseEntity<ItemDto.HistoryPageResponse> getHistory(
+            @RequestParam(name = "itemId", required = false) Long itemId,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(inventoryService.getHistory(itemId, page, size));
+    } //입출고 이력 (itemId 없으면 전체)
+
     @PostMapping
     public ResponseEntity<ItemDto.ItemResponse> createItem(
             @Valid @RequestBody ItemDto.CreateRequest request

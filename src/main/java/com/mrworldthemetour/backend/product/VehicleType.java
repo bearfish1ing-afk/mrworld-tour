@@ -4,7 +4,7 @@ package com.mrworldthemetour.backend.product;
 public enum VehicleType {
     COUPLE_LUXURY("2인 전용 고급차량"),   // 허니문 기본
     VAN_10_LUXURY("10인 승합 고급차량"),  // 효도, 골프, 트레킹 기본
-    PRIVATE_LIMOUSINE("VIP 리무진");      // 업그레이드 (TODO: 팀에서 업그레이드 차량 목록 확정)
+    PRIVATE_LIMOUSINE("VIP 리무진");      // 업그레이드
 
     private final String label;
 
