@@ -1,20 +1,39 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { clearToken, errorMessage, getToken, isAbort, onUnauthorized } from "./api/client";
+import { getMe, getMyReservations, getProducts } from "./api/customer";
+import type { ProductSummary, ReservationListItem, UserResponse } from "./api/types";
+import { toSelectedProduct, type SelectedProduct, type ThemeId } from "./api/view";
 import { CustomerLogin, CustomerSignup } from "./CustomerAuth";
 import MyPage from "./MyPage";
 import PaymentPage from "./PaymentPage";
 import ProductDetailPage, {
   type ReservationSelection,
 } from "./ProductDetailPage";
-import ReservationHistoryPage, {
-  type Reservation,
-  initialReservations,
-} from "./ReservationHistoryPage";
-import SearchResultsPage from "./SearchResultsPage";
-import ThemeTravelPage, {
-  type SelectedProduct,
-  type ThemeId,
-} from "./ThemeTravelPage";
+import ReservationHistoryPage from "./ReservationHistoryPage";
+import SearchResultsPage, { type SearchRequest } from "./SearchResultsPage";
+import ThemeTravelPage from "./ThemeTravelPage";
 import TravelHistoryModal from "./TravelHistoryModal";
+
+// 브라우저 음성 인식 (Chrome/Edge: webkitSpeechRecognition)
+type SpeechRecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+function createSpeechRecognition(): SpeechRecognitionLike | null {
+  const w = window as unknown as {
+    SpeechRecognition?: new () => SpeechRecognitionLike;
+    webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+  };
+  const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
+  return Ctor ? new Ctor() : null;
+}
 
 const asset = (name: string) => `/assets/${name}`;
 
@@ -70,6 +89,7 @@ function Header({
   onMyPage,
   onReservations,
   onSearch,
+  onVoiceSearch,
   onTheme,
   onGuide,
   searchValue,
@@ -82,6 +102,7 @@ function Header({
   onMyPage?: () => void;
   onReservations?: () => void;
   onSearch?: (query: string) => void;
+  onVoiceSearch?: (transcript: string) => void;
   onTheme?: (theme: ThemeId) => void;
   onGuide?: (type: GuideType) => void;
   searchValue?: string;
@@ -91,6 +112,38 @@ function Header({
   const [activeMenu, setActiveMenu] = useState<number | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+
+  useEffect(() => () => recognitionRef.current?.stop(), []);
+
+  const toggleVoice = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    const recognition = createSpeechRecognition();
+    if (!recognition) {
+      alert("이 브라우저는 음성 인식을 지원하지 않습니다. Chrome 또는 Edge에서 이용해 주세요.");
+      return;
+    }
+    recognition.lang = "ko-KR";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onresult = (event) => {
+      const transcript = event.results[0]?.[0]?.transcript?.trim();
+      if (transcript) onVoiceSearch?.(transcript);
+    };
+    recognition.onerror = (event) => {
+      if (event.error === "not-allowed") alert("마이크 권한을 허용해 주세요.");
+    };
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+    recognitionRef.current = recognition;
+    setIsListening(true);
+    recognition.start();
+  };
 
   return (
     <header className="relative z-20 bg-white">
@@ -187,7 +240,7 @@ function Header({
                 .get("travel-search")
                 ?.toString()
                 .trim();
-              onSearch?.(query || "허니문");
+              onSearch?.(query || "");
             }}
           >
             <button
@@ -195,7 +248,7 @@ function Header({
               type="button"
               aria-label={isListening ? "음성 인식 중지" : "음성 검색 시작"}
               aria-pressed={isListening}
-              onClick={() => setIsListening((listening) => !listening)}
+              onClick={toggleVoice}
             >
               {isListening ? (
                 <div className="flex items-center gap-[2.5px] h-4 shrink-0 px-0.5" title="음성 인식 중...">
@@ -367,7 +420,7 @@ function Header({
   );
 }
 
-function TravelCard({ onSelect }: { onSelect: () => void }) {
+function TravelCard({ product, onSelect }: { product: SelectedProduct; onSelect: () => void }) {
   return (
     <button
       className="flex min-w-0 flex-col gap-2.5 text-left cursor-pointer group"
@@ -377,18 +430,18 @@ function TravelCard({ onSelect }: { onSelect: () => void }) {
       <div className="overflow-hidden rounded-md">
         <img
           className="aspect-[225/200] w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          src={asset("8a4c7.png")}
-          alt="몰디브 아리 아톨 풀빌라"
+          src={product.image}
+          alt={product.title}
         />
       </div>
       <p className="font-dot-regular text-base leading-[1.1] tracking-[-0.32px] text-[#1596b4] font-semibold">
-        허니문
+        {product.themeLabel}
       </p>
       <p className="font-dot-regular text-xl leading-[1.1] tracking-[-0.4px] text-black">
-        [몰디브] 아리 아톨 오버워터 풀빌라 6일
+        [{product.country}] {product.title}
       </p>
       <p className="font-dot-semibold text-xl leading-[1.1] tracking-[-0.4px] text-black">
-        3,890,000원~
+        {product.price.toLocaleString("ko-KR")}원~
       </p>
     </button>
   );
@@ -399,6 +452,23 @@ function MainContent({
 }: {
   onProductSelect: (product: SelectedProduct) => void;
 }) {
+  const [products, setProducts] = useState<ProductSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getProducts(0, 4, controller.signal)
+      .then((page) => setProducts(page.content))
+      .catch((error) => {
+        if (!isAbort(error)) setLoadError(errorMessage(error));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, []);
+
   return (
     <main>
       <section className="relative flex h-[560px] items-center overflow-hidden">
@@ -428,25 +498,30 @@ function MainContent({
             망설이지 말고 지금 예약하세요!
           </p>
         </div>
-        <div className="mt-12 grid grid-cols-1 gap-8 px-0 sm:grid-cols-2 lg:grid-cols-4 lg:gap-[38px] lg:px-[30px]">
-          {Array.from({ length: 4 }, (_, index) => (
-            <TravelCard
-              key={index}
-              onSelect={() =>
-                onProductSelect({
-                  badge: "프리미엄",
-                  country: "몰디브",
-                  title: "아리 아톨 오버워터 풀빌라 6일",
-                  duration: "4박 6일 · 항공 포함",
-                  price: "3,890,000원~",
-                  image: "cfca1.png",
-                  theme: "honeymoon",
-                  themeLabel: "허니문",
-                })
-              }
-            />
-          ))}
-        </div>
+        {loading ? (
+          <p className="py-16 text-center font-dot-regular text-sm text-[#707070]">
+            여행 상품을 불러오는 중입니다...
+          </p>
+        ) : loadError ? (
+          <p className="py-16 text-center font-dot-regular text-sm text-[#a43d3d]">{loadError}</p>
+        ) : products.length === 0 ? (
+          <p className="py-16 text-center font-dot-regular text-sm text-[#707070]">
+            현재 예약 가능한 여행 상품이 없습니다.
+          </p>
+        ) : (
+          <div className="mt-12 grid grid-cols-1 gap-8 px-0 sm:grid-cols-2 lg:grid-cols-4 lg:gap-[38px] lg:px-[30px]">
+            {products.map((summary) => {
+              const product = toSelectedProduct(summary);
+              return (
+                <TravelCard
+                  key={product.id}
+                  product={product}
+                  onSelect={() => onProductSelect(product)}
+                />
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <CustomerCenter />
@@ -509,8 +584,7 @@ function Footer() {
 }
 
 export default function App() {
-  const [reservations, setReservations] = useState<Reservation[]>(initialReservations);
-  const [targetReservationId, setTargetReservationId] = useState<string | null>(null);
+  const [targetReservationId, setTargetReservationId] = useState<number | null>(null);
   const [page, setPage] = useState<
     "home" | "signup" | "login" | "mypage" | "reservations" | "search" | "theme" | "detail" | "payment"
   >("home");
@@ -518,22 +592,59 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState<SelectedProduct | null>(null);
   const [reservation, setReservation] = useState<ReservationSelection | null>(null);
   const [loginReturnPage, setLoginReturnPage] = useState<"home" | "detail" | "mypage" | "reservations">("home");
-  const [registeredAccount, setRegisteredAccount] = useState<{
-    username: string;
-    password: string;
-  } | null>(null);
-  const [currentUser, setCurrentUser] = useState("");
+  const [currentUser, setCurrentUser] = useState<UserResponse | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(() => !getToken());
+  const [travelHistory, setTravelHistory] = useState<ReservationListItem[]>([]);
   const [showTravelHistory, setShowTravelHistory] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("허니문");
+  const [searchRequest, setSearchRequest] = useState<SearchRequest>({ text: "", nonce: 0 });
   const [activeGuide, setActiveGuide] = useState<GuideType | null>(null);
+
+  const logout = () => {
+    clearToken();
+    setShowTravelHistory(false);
+    setCurrentUser(null);
+    setReservation(null);
+  };
+
+  // 새로고침 시 저장된 토큰으로 로그인 상태 복원
+  useEffect(() => {
+    if (!getToken()) return;
+    getMe()
+      .then(setCurrentUser)
+      .catch(() => clearToken())
+      .finally(() => setSessionChecked(true));
+  }, []);
+
+  // 토큰 만료(401) 시 로그아웃 후 로그인 화면으로
+  useEffect(() => {
+    onUnauthorized(() => {
+      setShowTravelHistory(false);
+      setCurrentUser(null);
+      setPage("login");
+    });
+    return () => onUnauthorized(null);
+  }, []);
 
   const openProtectedPage = (destination: "mypage" | "reservations") => {
     if (currentUser) {
+      setTargetReservationId(null);
       setPage(destination);
       return;
     }
     setLoginReturnPage(destination);
     setPage("login");
+  };
+
+  const runSearch = (text: string, voice = false) => {
+    setSearchRequest((prev) => ({ text, voice, nonce: prev.nonce + 1 }));
+    setPage("search");
+    window.scrollTo({ top: 0 });
+  };
+
+  const selectProduct = (product: SelectedProduct) => {
+    setSelectedProduct(product);
+    setPage("detail");
+    window.scrollTo({ top: 0 });
   };
 
   const headerProps = {
@@ -545,54 +656,47 @@ export default function App() {
     onSignup: () => setPage("signup"),
     onMyPage: () => openProtectedPage("mypage"),
     onReservations: () => openProtectedPage("reservations"),
-    onSearch: (query: string) => {
-      setSearchQuery(query);
-      setPage("search");
-      window.scrollTo({ top: 0 });
-    },
+    onSearch: (query: string) => runSearch(query),
+    onVoiceSearch: (transcript: string) => runSearch(transcript, true),
     onTheme: (theme: ThemeId) => {
       setActiveTheme(theme);
       setPage("theme");
     },
-    onGuide: (type: GuideType) => setActiveGuide(type), 
-    searchValue: page === "search" ? searchQuery : undefined,
-    currentUser,
+    onGuide: (type: GuideType) => setActiveGuide(type),
+    searchValue: page === "search" && !searchRequest.voice ? searchRequest.text : undefined,
+    currentUser: currentUser ? currentUser.nickname || currentUser.name : undefined,
     onLogout: () => {
-      setShowTravelHistory(false);
-      setCurrentUser("");
+      logout();
       setPage("home");
     },
   };
+
+  // 로그인 확인이 끝나기 전에는 보호된 화면을 그리지 않음
+  const needsUser =
+    page === "mypage" || page === "reservations" || page === "payment";
 
   return (
     <div className="min-h-screen bg-[#f7f7f7] text-black">
       {page !== "login" && page !== "signup" && <Header {...headerProps} />}
 
-      {page === "home" && (
-        <MainContent
-          onProductSelect={(product) => {
-            setSelectedProduct(product);
-            setPage("detail");
-            window.scrollTo({ top: 0 });
-          }}
-        />
-      )}
+      {page === "home" && <MainContent onProductSelect={selectProduct} />}
 
       {page === "login" && (
         <CustomerLogin
           onHome={() => setPage("home")}
-          onLoginSuccess={(email) => {
-            setCurrentUser(email);
-
-            const userHistory = reservations.filter(
-              (res) => res.customer.email === email || res.customer.name === email
-            );
-
-            if (userHistory.length > 0) {
-              setShowTravelHistory(true);
-            } else {
-              setShowTravelHistory(false);
-            }
+          onLoginSuccess={(user) => {
+            setCurrentUser(user);
+            setSessionChecked(true);
+            // 지난 예약이 있으면 최근 3건을 보여줌
+            getMyReservations()
+              .then((list) => {
+                const recent = [...list]
+                  .sort((a, b) => b.reservedAt.localeCompare(a.reservedAt))
+                  .slice(0, 3);
+                setTravelHistory(recent);
+                setShowTravelHistory(recent.length > 0);
+              })
+              .catch(() => setShowTravelHistory(false));
 
             setPage(loginReturnPage);
             setLoginReturnPage("home");
@@ -609,39 +713,31 @@ export default function App() {
         />
       )}
 
-      {page === "mypage" && <MyPage currentUser={currentUser} />}
-      
-      {page === "reservations" && (
-        <ReservationHistoryPage
-          reservations={reservations}
-          initialSelectedId={targetReservationId}
-          onCancelReservation={(resNo) => {
-            setReservations((prev) =>
-              prev.map((item) =>
-                item.reservationNumber === resNo
-                  ? {
-                      ...item,
-                      status: "취소",
-                      statusDetail: "취소·환불 접수 완료",
-                      refundStatus: "결제사 환불 처리 중",
-                    }
-                  : item
-              )
-            );
-          }}
-        />
+      {needsUser && !currentUser && (
+        <main className="bg-white px-5 py-24 text-center font-dot-regular text-sm text-[#707070]">
+          {sessionChecked ? (
+            <button
+              type="button"
+              className="cursor-pointer underline"
+              onClick={() => setPage("login")}
+            >
+              로그인이 필요합니다. 로그인하기
+            </button>
+          ) : (
+            "로그인 정보를 확인하는 중입니다..."
+          )}
+        </main>
+      )}
+
+      {page === "mypage" && currentUser && <MyPage user={currentUser} />}
+
+      {page === "reservations" && currentUser && (
+        <ReservationHistoryPage user={currentUser} initialSelectedId={targetReservationId} />
       )}
 
       {page === "search" && (
         <div className="bg-white">
-          <SearchResultsPage
-            keyword={searchQuery}
-            onProductSelect={(product) => {
-              setSelectedProduct(product);
-              setPage("detail");
-              window.scrollTo({ top: 0 });
-            }}
-          />
+          <SearchResultsPage request={searchRequest} onProductSelect={selectProduct} />
           <CustomerCenter />
         </div>
       )}
@@ -654,15 +750,8 @@ export default function App() {
               setActiveTheme(theme);
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
-            onSearch={(query) => {
-              setSearchQuery(query);
-              setPage("search");
-            }}
-            onProductSelect={(product) => {
-              setSelectedProduct(product);
-              setPage("detail");
-              window.scrollTo({ top: 0 });
-            }}
+            onSearch={(query) => runSearch(query)}
+            onProductSelect={selectProduct}
           />
           <CustomerCenter />
         </div>
@@ -691,57 +780,14 @@ export default function App() {
           <PaymentPage
             product={selectedProduct}
             reservation={reservation}
-            username={currentUser}
+            user={currentUser}
             onBack={() => {
               setPage("detail");
               window.scrollTo({ top: 0 });
             }}
-            onPaymentSuccess={({ paymentMethod, finalPrice }) => {
-              const minParticipants = selectedProduct.theme === "honeymoon" ? 2 : 3;
-              const isConfirmed = reservation.people >= minParticipants;
-
-              const newReservation: Reservation = {
-                reservationNumber: `${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${Math.floor(100 + Math.random() * 900)}`,
-                reservedAt: new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }).replace(/ /g, "").slice(0, -1),
-                title: selectedProduct.title,
-                dates: "2026.10.24 ~ 2026.10.29",
-                details: `성인 ${reservation.people}명`,
-                category: selectedProduct.themeLabel,
-                departure: "인천 출발",
-                totalPrice: finalPrice,
-                status: isConfirmed ? "확정" : "대기",
-                statusDetail: isConfirmed ? "예약금 결제 완료" : "담당자 확인 중",
-                image: selectedProduct.image || "8a4c7.png",
-                imageAlt: selectedProduct.title,
-                customer: {
-                  name: currentUser,
-                  birthDate: "1994.05.18",
-                  phone: "010-1234-5678",
-                  email: `${currentUser}@misterworld.com`,
-                },
-                companions: Array.from({ length: Math.max(0, reservation.people - 1) }, (_, i) => ({
-                  name: `동행자 ${i + 1}`,
-                  relationship: "동행인",
-                  birthDate: "1995.01.01",
-                  passportName: `COMPANION ${i + 1}`,
-                })),
-                options: {
-                  tourGrade: reservation.tourGrade,
-                  hotel: reservation.hotel,
-                  vehicle: reservation.vehicle,
-                  meal: reservation.meal,
-                  extras: reservation.additionalOptions.map((opt) => opt.label),
-                },
-                payment: {
-                  method: paymentMethod,
-                  paidAt: new Date().toLocaleString("ko-KR"),
-                  basePrice: reservation.baseTotal,
-                  optionPrice: reservation.extraPrice,
-                  discountPrice: Math.floor(reservation.totalPrice * 0.01),
-                },
-              };
-
-              setReservations((prev) => [newReservation, ...prev]);
+            onPaymentSuccess={(result) => {
+              setReservation(null);
+              setTargetReservationId(result.reservationId);
               setPage("reservations");
               window.scrollTo({ top: 0 });
             }}
@@ -753,18 +799,16 @@ export default function App() {
 
       {showTravelHistory && (
         <TravelHistoryModal
+          items={travelHistory}
           onClose={() => setShowTravelHistory(false)}
           onViewAll={() => {
             setShowTravelHistory(false);
             setTargetReservationId(null);
             setPage("reservations");
           }}
-          onSelectHistory={(index) => {
+          onSelectHistory={(reservationId) => {
             setShowTravelHistory(false);
-            const matchedReservation = reservations[index] || reservations[0];
-            if (matchedReservation) {
-              setTargetReservationId(matchedReservation.reservationNumber);
-            }
+            setTargetReservationId(reservationId);
             setPage("reservations");
             window.scrollTo({ top: 0 });
           }}
@@ -840,8 +884,8 @@ function GuideModal({ type, onClose }: GuideModalProps) {
         {
           heading: "2. 단골 회원 등급 자동 할인",
           items: [
-            "최근 1년간의 여행 이용 실적을 기반으로 회원 등급(일반/실버/골드)이 자동 산정됩니다.",
-            "결제 시 회원 등급에 따른 할인 금액(1% ~ 5%)이 주문 합계 금액에서 자동으로 즉시 차감 반영됩니다.",
+            "최근 1년간의 여행 이용 금액을 기반으로 회원 등급(브론즈/실버/골드)이 자동 산정됩니다.",
+            "결제 시 회원 등급에 따른 할인(실버 2%, 골드 5%)이 주문 합계 금액에서 자동으로 차감됩니다.",
           ],
         },
         {

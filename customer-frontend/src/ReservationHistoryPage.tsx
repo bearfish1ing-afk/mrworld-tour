@@ -1,187 +1,43 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { errorMessage } from "./api/client"
+import {
+  cancelReservation as cancelReservationApi,
+  getMyReservation,
+  getMyReservations,
+  getProduct,
+} from "./api/customer"
+import type {
+  ReservationDetail,
+  ReservationListItem,
+  UserResponse,
+} from "./api/types"
+import {
+  formatDate,
+  formatDateTime,
+  gradeLabel,
+  productImage,
+  statusLabels,
+  toThemeId,
+  type StatusLabel,
+} from "./api/view"
 
-const asset = (name: string) => `/assets/mypage-2001-114/${name}`
-
-type ReservationStatus = "확정" | "대기" | "취소"
+type ReservationStatus = StatusLabel
 type ReservationFilter = "전체" | ReservationStatus
 
-export type Reservation = {
-  reservationNumber: string
-  reservedAt: string
-  title: string
-  dates: string
-  details: string
-  category: string
-  departure: string
-  totalPrice: number
-  status: ReservationStatus
-  statusDetail: string
-  image: string
-  imageAlt: string
-  deadlineAt?: string
-  isDeadlinePassed?: boolean
-  customer: {
-    name: string
-    birthDate: string
-    phone: string
-    email: string
-  }
-  companions: {
-    name: string
-    relationship: string
-    birthDate: string
-    passportName: string
-  }[]
-  options: {
-    tourGrade: string
-    hotel: string
-    vehicle: string
-    meal: string
-    extras: string[]
-  }
-  payment: {
-    method: string
-    paidAt: string
-    basePrice: number
-    optionPrice: number
-    discountPrice: number
-  }
-  refundStatus?: string
+const optionTypeLabels: Record<string, string> = {
+  GRADE: "투어 등급",
+  HOTEL: "호텔",
+  MEAL: "식사",
+  VEHICLE: "차량",
+  DRINK: "음료",
+  ETC: "기타",
 }
 
-export const initialReservations: Reservation[] = [
-  {
-    reservationNumber: "20260928001",
-    reservedAt: "2026.09.28",
-    title: "[몰디브] 올인클루시브 4박 6일",
-    dates: "2026.11.04 ~ 2026.11.09",
-    deadlineAt: "2026.10.20",
-    isDeadlinePassed: true,
-    details: "성인 2명",
-    category: "허니문",
-    departure: "인천 출발",
-    totalPrice: 6580000,
-    status: "확정",
-    statusDetail: "예약금 결제 완료",
-    image: "8a4c7.png",
-    imageAlt: "몰디브 해변과 리조트",
-    customer: {
-      name: "김민지",
-      birthDate: "1994.05.18",
-      phone: "010-1234-5678",
-      email: "minji.kim@example.com",
-    },
-    companions: [
-      {
-        name: "이준호",
-        relationship: "배우자",
-        birthDate: "1992.11.03",
-        passportName: "JUNHO LEE",
-      },
-    ],
-    options: {
-      tourGrade: "그랜드",
-      hotel: "5성급 오션뷰 워터빌라",
-      vehicle: "프리미엄 리무진",
-      meal: "올인클루시브",
-      extras: ["샴페인 1병", "고급 커피 세트", "선셋 크루즈"],
-    },
-    payment: {
-      method: "신한카드 · 일시불",
-      paidAt: "2026.09.28 14:32",
-      basePrice: 6400000,
-      optionPrice: 250000,
-      discountPrice: 70000,
-    },
-  },
-  {
-    reservationNumber: "20260930002",
-    reservedAt: "2026.09.30",
-    title: "[그리스] 산토리니·아테네 6박 8일",
-    dates: "2026.12.04 ~ 2026.12.11",
-    deadlineAt: "2026.11.20",
-    isDeadlinePassed: false,
-    details: "성인 2명",
-    category: "허니문",
-    departure: "인천 출발",
-    totalPrice: 7780000,
-    status: "대기",
-    statusDetail: "담당자 확인 중",
-    image: "bbfe6.png",
-    imageAlt: "그리스 산토리니의 해안 마을",
-    customer: {
-      name: "김민지",
-      birthDate: "1994.05.18",
-      phone: "010-1234-5678",
-      email: "minji.kim@example.com",
-    },
-    companions: [
-      {
-        name: "이준호",
-        relationship: "배우자",
-        birthDate: "1992.11.03",
-        passportName: "JUNHO LEE",
-      },
-    ],
-    options: {
-      tourGrade: "프리미엄",
-      hotel: "5성급 부티크 호텔",
-      vehicle: "전용 세단",
-      meal: "현지 미식 코스",
-      extras: ["산토리니 스냅 촬영", "와이너리 투어"],
-    },
-    payment: {
-      method: "실시간 계좌이체",
-      paidAt: "2026.09.30 10:18",
-      basePrice: 7600000,
-      optionPrice: 260000,
-      discountPrice: 80000,
-    },
-  },
-  {
-    reservationNumber: "20260820003",
-    reservedAt: "2026.08.20",
-    title: "[인도네시아] 발리 풀빌라 4박 6일",
-    dates: "2026.10.12 ~ 2026.10.17",
-    details: "성인 2명",
-    category: "허니문",
-    departure: "인천 출발",
-    totalPrice: 3780000,
-    status: "취소",
-    statusDetail: "2026.09.02 취소 완료",
-    image: "8fbe1.png",
-    imageAlt: "발리의 정원과 풀빌라",
-    customer: {
-      name: "김민지",
-      birthDate: "1994.05.18",
-      phone: "010-1234-5678",
-      email: "minji.kim@example.com",
-    },
-    companions: [
-      {
-        name: "박서연",
-        relationship: "친구",
-        birthDate: "1994.08.22",
-        passportName: "SEOYEON PARK",
-      },
-    ],
-    options: {
-      tourGrade: "클래식",
-      hotel: "프라이빗 풀빌라",
-      vehicle: "공항 픽업 전용차량",
-      meal: "조식 포함",
-      extras: ["플로팅 브렉퍼스트"],
-    },
-    payment: {
-      method: "신한카드 · 일시불",
-      paidAt: "2026.08.20 16:05",
-      basePrice: 3700000,
-      optionPrice: 120000,
-      discountPrice: 40000,
-    },
-    refundStatus: "전액 환불 완료",
-  },
-]
+const formatPhone = (phone: string) =>
+  phone.replace(/^(\d{3})(\d{4})(\d{4})$/, "$1-$2-$3")
+
+// 목록 카드에 쓰는 이미지 (예약 응답에는 테마가 없어 상품 ID로 고름)
+const reservationImage = (productId: number) => productImage(productId, null)
 
 const filters: ReservationFilter[] = ["전체", "대기", "확정", "취소"]
 const currency = (price: number) => `${price.toLocaleString("ko-KR")}원`
@@ -213,29 +69,50 @@ function DetailItem({ label, value }: { label: string; value: string }) {
 }
 
 function ReservationDetailModal({
-  reservation,
+  reservationId,
+  user,
   onClose,
-  onCancel,
+  onCanceled,
 }: {
-  reservation: Reservation
+  reservationId: number
+  user: UserResponse
   onClose: () => void
-  onCancel: () => void
+  onCanceled: () => void
 }) {
+  const [reservation, setReservation] = useState<ReservationDetail | null>(null)
+  const [loadError, setLoadError] = useState("")
+  const [deadline, setDeadline] = useState<string | null>(null)
+  const [image, setImage] = useState(reservationImage(reservationId))
   const [confirmingCancel, setConfirmingCancel] = useState(false)
+  const [canceling, setCanceling] = useState(false)
+  const [cancelError, setCancelError] = useState("")
   const closeButton = useRef<HTMLButtonElement>(null)
-  const refundableAmount = reservation.totalPrice
 
-  const isDeadlinePassed = useMemo(() => {
-    if (typeof reservation.isDeadlinePassed === "boolean") {
-      return reservation.isDeadlinePassed
-    }
-    if (reservation.deadlineAt) {
-      const today = new Date()
-      const deadline = new Date(reservation.deadlineAt.replace(/\./g, "-"))
-      return today > deadline
-    }
-    return false
-  }, [reservation])
+  const load = useCallback(() => {
+    setLoadError("")
+    getMyReservation(reservationId)
+      .then((detail) => {
+        setReservation(detail)
+        setImage(reservationImage(detail.productId))
+        // 모집 마감일은 상품 정보에 있음 (모집 중/출발 확정 상품만 조회 가능)
+        getProduct(detail.productId)
+          .then((p) => {
+            setDeadline(p.product.deadline)
+            setImage(productImage(p.product.id, toThemeId(p.product.theme)))
+          })
+          .catch(() => setDeadline(null))
+      })
+      .catch((error) => setLoadError(errorMessage(error)))
+  }, [reservationId])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const isDeadlinePassed = useMemo(
+    () => (deadline ? new Date(deadline).getTime() < Date.now() : false),
+    [deadline],
+  )
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
@@ -253,6 +130,30 @@ function ReservationDetailModal({
     }
   }, [onClose])
 
+  const cancel = async () => {
+    setCanceling(true)
+    setCancelError("")
+    try {
+      await cancelReservationApi(reservationId)
+      setConfirmingCancel(false)
+      onCanceled()
+      load()
+    } catch (error) {
+      setCancelError(errorMessage(error))
+    } finally {
+      setCanceling(false)
+    }
+  }
+
+  const status = reservation ? statusLabels[reservation.status] : null
+  const refundableAmount = reservation?.finalAmount ?? 0
+  const optionValue = (type: string) =>
+    reservation?.options
+      .filter((o) => o.type === type)
+      .map((o) => o.name)
+      .join(", ") || "-"
+  const extras = reservation?.options.filter((o) => o.type === "DRINK" || o.type === "ETC") ?? []
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4"
@@ -269,7 +170,7 @@ function ReservationDetailModal({
         <header className="flex items-start justify-between border-b border-[#d9d9d9] bg-[#c7e8ef] px-5 py-4 sm:px-7">
           <div>
             <p className="font-dot-regular text-xs text-[#597078]">
-              예약번호 {reservation.reservationNumber}
+              예약번호 {reservation?.reservationCode ?? "-"}
             </p>
             <h2
               className="mt-1 font-dot-semibold text-xl text-[#151515]"
@@ -289,162 +190,124 @@ function ReservationDetailModal({
           </button>
         </header>
 
-        <div className="overflow-y-auto px-5 py-5 sm:px-7">
-          <section className="flex flex-col gap-4 bg-[#f7f7f7] p-4 sm:flex-row sm:items-center">
-            <img
-              className="h-[104px] w-[126px] shrink-0 object-cover"
-              src={asset(reservation.image)}
-              alt={reservation.imageAlt}
-            />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="bg-[#1596b4] px-2 py-1 font-dot-semibold text-xs text-white">
-                  {reservation.status}
-                </span>
-                <span className="font-dot-regular text-xs text-[#707070]">
-                  {reservation.statusDetail}
-                </span>
-              </div>
-              <h3 className="mt-2 font-dot-semibold text-lg">
-                {reservation.title}
-              </h3>
-              <p className="mt-1 font-dot-regular text-[13px] text-[#707070]">
-                {reservation.dates} · {reservation.details} ·{" "}
-                {reservation.departure}
-              </p>
-            </div>
-            <p className="font-dot-bold text-xl text-[#1596b4]">
-              {currency(reservation.totalPrice)}
-            </p>
-          </section>
-
-          <div className="mt-6 space-y-5">
-            <DetailGroup title="예약 고객 정보">
-              <DetailItem label="예약자" value={reservation.customer.name} />
-              <DetailItem
-                label="생년월일"
-                value={reservation.customer.birthDate}
+        {!reservation ? (
+          <div className="px-5 py-16 text-center font-dot-regular text-sm text-[#707070] sm:px-7">
+            {loadError || "예약 정보를 불러오는 중입니다..."}
+          </div>
+        ) : (
+          <div className="overflow-y-auto px-5 py-5 sm:px-7">
+            <section className="flex flex-col gap-4 bg-[#f7f7f7] p-4 sm:flex-row sm:items-center">
+              <img
+                className="h-[104px] w-[126px] shrink-0 object-cover"
+                src={image}
+                alt={reservation.productTitle}
               />
-              <DetailItem label="휴대전화" value={reservation.customer.phone} />
-              <DetailItem label="이메일" value={reservation.customer.email} />
-            </DetailGroup>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="bg-[#1596b4] px-2 py-1 font-dot-semibold text-xs text-white">
+                    {status}
+                  </span>
+                  <span className="font-dot-regular text-xs text-[#707070]">
+                    {statusDetail(reservation.status)}
+                  </span>
+                </div>
+                <h3 className="mt-2 font-dot-semibold text-lg">{reservation.productTitle}</h3>
+                <p className="mt-1 font-dot-regular text-[13px] text-[#707070]">
+                  {formatDate(reservation.departureDate)} ~ {formatDate(reservation.returnDate)} ·
+                  성인 {reservation.people}명
+                </p>
+              </div>
+              <p className="font-dot-bold text-xl text-[#1596b4]">
+                {currency(reservation.finalAmount)}
+              </p>
+            </section>
 
-            <DetailGroup
-              title={`동행자 정보 · ${reservation.companions.length}명`}
-            >
-              {reservation.companions.map((companion) => (
-                <div
-                  className="contents"
-                  key={`${reservation.reservationNumber}-${companion.name}`}
-                >
+            <div className="mt-6 space-y-5">
+              <DetailGroup title="예약 고객 정보">
+                <DetailItem label="예약자" value={user.name} />
+                <DetailItem label="휴대전화" value={formatPhone(user.phoneNum)} />
+                <DetailItem label="이메일" value={user.email} />
+                <DetailItem label="예약 일시" value={formatDateTime(reservation.reservedAt)} />
+              </DetailGroup>
+
+              <DetailGroup title="여행 및 세부 옵션">
+                <DetailItem
+                  label="여행 일정"
+                  value={`${formatDate(reservation.departureDate)} ~ ${formatDate(reservation.returnDate)}`}
+                />
+                <DetailItem label="인원" value={`성인 ${reservation.people}명`} />
+                <DetailItem label="투어 등급" value={gradeLabel(reservation.grade)} />
+                <DetailItem label="호텔" value={optionValue("HOTEL")} />
+                <DetailItem label="차량" value={reservation.vehicle || optionValue("VEHICLE")} />
+                <DetailItem label="식사" value={optionValue("MEAL")} />
+                <div className="sm:col-span-2">
                   <DetailItem
-                    label="이름 / 관계"
-                    value={`${companion.name} / ${companion.relationship}`}
-                  />
-                  <DetailItem label="생년월일" value={companion.birthDate} />
-                  <DetailItem
-                    label="여권 영문명"
-                    value={companion.passportName}
+                    label="추가 옵션"
+                    value={
+                      extras
+                        .map(
+                          (o) =>
+                            `${optionTypeLabels[o.type] ?? o.type} ${o.name}${o.isDefault ? " (기본)" : ""}`,
+                        )
+                        .join(" · ") || "추가 옵션 없음"
+                    }
                   />
                 </div>
-              ))}
-            </DetailGroup>
+              </DetailGroup>
 
-            <DetailGroup title="여행 및 세부 옵션">
-              <DetailItem label="여행 일정" value={reservation.dates} />
-              <DetailItem label="테마" value={reservation.category} />
-              <DetailItem
-                label="투어 등급"
-                value={reservation.options.tourGrade}
-              />
-              <DetailItem label="호텔" value={reservation.options.hotel} />
-              <DetailItem label="차량" value={reservation.options.vehicle} />
-              <DetailItem label="식사" value={reservation.options.meal} />
-              <div className="sm:col-span-2">
+              <DetailGroup title="결제 및 환불 정보">
+                <DetailItem label="결제 수단" value={reservation.paymentMethod || "-"} />
+                <DetailItem label="결제 일시" value={formatDateTime(reservation.reservedAt)} />
+                <DetailItem label="기본 상품금액" value={currency(reservation.baseAmount)} />
                 <DetailItem
-                  label="추가 옵션"
-                  value={
-                    reservation.options.extras.join(" · ") || "추가 옵션 없음"
-                  }
+                  label="옵션 추가금"
+                  value={`${reservation.optionAmount < 0 ? "-" : "+"}${currency(Math.abs(reservation.optionAmount))}`}
                 />
-              </div>
-            </DetailGroup>
-
-            <DetailGroup title="결제 및 환불 정보">
-              <DetailItem
-                label="결제 수단"
-                value={reservation.payment.method}
-              />
-              <DetailItem
-                label="결제 일시"
-                value={reservation.payment.paidAt}
-              />
-              <DetailItem
-                label="기본 상품금액"
-                value={currency(reservation.payment.basePrice)}
-              />
-              <DetailItem
-                label="옵션 추가금"
-                value={`+${currency(reservation.payment.optionPrice)}`}
-              />
-              <DetailItem
-                label="회원 할인"
-                value={`-${currency(reservation.payment.discountPrice)}`}
-              />
-              <DetailItem
-                label="총 결제금액"
-                value={currency(reservation.totalPrice)}
-              />
-              {reservation.status === "취소" && (
-                <>
-                  <DetailItem
-                    label="환불 상태"
-                    value={reservation.refundStatus || "환불 접수 완료"}
-                  />
-                  <DetailItem
-                    label="환불 예정액"
-                    value={currency(refundableAmount)}
-                  />
-                </>
-              )}
-            </DetailGroup>
-          </div>
-
-          {confirmingCancel && (
-            <div
-              className="mt-1 border border-[#e4b8b8] bg-[#fff7f7] p-4"
-              role="alert"
-            >
-              <p className="font-dot-semibold text-sm text-[#8b2c2c]">
-                이 예약을 취소하고 환불을 접수하시겠습니까?
-              </p>
-              <p className="mt-2 font-dot-regular text-xs leading-[1.55] text-[#707070]">
-                현재 기준 환불 예정 금액은 {currency(refundableAmount)}입니다.
-                실제 환불 금액과 소요 기간은 취소 규정 및 결제사 확인 후
-                확정됩니다.
-              </p>
-              <div className="mt-4 flex justify-end gap-2">
-                <button
-                  className="h-9 border border-[#d9d9d9] bg-white px-4 font-dot-regular text-sm cursor-pointer"
-                  type="button"
-                  onClick={() => setConfirmingCancel(false)}
-                >
-                  돌아가기
-                </button>
-                <button
-                  className="h-9 bg-[#a43d3d] px-4 font-dot-semibold text-sm text-white cursor-pointer"
-                  type="button"
-                  onClick={() => {
-                    onCancel()
-                    setConfirmingCancel(false)
-                  }}
-                >
-                  취소·환불 접수
-                </button>
-              </div>
+                <DetailItem label="회원 할인" value={`-${currency(reservation.discountAmount)}`} />
+                <DetailItem label="총 결제금액" value={currency(reservation.finalAmount)} />
+                {status === "취소" && (
+                  <>
+                    <DetailItem label="환불 상태" value="환불 접수 완료" />
+                    <DetailItem label="환불 예정액" value={currency(refundableAmount)} />
+                  </>
+                )}
+              </DetailGroup>
             </div>
-          )}
-        </div>
+
+            {confirmingCancel && (
+              <div className="mt-1 border border-[#e4b8b8] bg-[#fff7f7] p-4" role="alert">
+                <p className="font-dot-semibold text-sm text-[#8b2c2c]">
+                  이 예약을 취소하고 환불을 접수하시겠습니까?
+                </p>
+                <p className="mt-2 font-dot-regular text-xs leading-[1.55] text-[#707070]">
+                  현재 기준 환불 예정 금액은 {currency(refundableAmount)}입니다.
+                  실제 환불 금액과 소요 기간은 취소 규정 및 결제사 확인 후
+                  확정됩니다.
+                </p>
+                {cancelError && (
+                  <p className="mt-2 font-dot-semibold text-xs text-[#a43d3d]">{cancelError}</p>
+                )}
+                <div className="mt-4 flex justify-end gap-2">
+                  <button
+                    className="h-9 border border-[#d9d9d9] bg-white px-4 font-dot-regular text-sm cursor-pointer"
+                    type="button"
+                    onClick={() => setConfirmingCancel(false)}
+                  >
+                    돌아가기
+                  </button>
+                  <button
+                    className="h-9 bg-[#a43d3d] px-4 font-dot-semibold text-sm text-white cursor-pointer disabled:cursor-wait disabled:opacity-60"
+                    type="button"
+                    disabled={canceling}
+                    onClick={cancel}
+                  >
+                    {canceling ? "처리 중..." : "취소·환불 접수"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <footer className="flex flex-col-reverse gap-3 border-t border-[#d9d9d9] px-5 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-7">
           <button
@@ -454,7 +317,7 @@ function ReservationDetailModal({
           >
             닫기
           </button>
-          {reservation.status !== "취소" && (
+          {reservation && status !== "취소" && (
             <div className="flex flex-col items-end gap-1.5 sm:flex-row sm:items-center">
               {isDeadlinePassed && (
                 <span className="font-dot-regular text-xs text-[#a43d3d]">
@@ -477,44 +340,51 @@ function ReservationDetailModal({
   )
 }
 
+function statusDetail(status: ReservationListItem["status"]) {
+  if (status === "CONFIRMED") return "출발 확정"
+  if (status === "PENDING") return "출발 인원 모집 중"
+  return "취소·환불 접수 완료"
+}
+
 function ReservationCard({
   reservation,
   onViewDetail,
 }: {
-  reservation: Reservation
+  reservation: ReservationListItem
   onViewDetail: () => void
 }) {
+  const status = statusLabels[reservation.status]
   const statusStyle = {
     확정: "bg-[#f0f9fb] text-[#1596b4]",
     대기: "bg-[#fff7e8] text-[#966211]",
     취소: "bg-[#f1f1f1] text-[#707070]",
-  }[reservation.status]
+  }[status]
 
   return (
     <article className="grid gap-5 border-b border-[#d9d9d9] px-5 py-[22px] sm:grid-cols-[130px_1fr] lg:grid-cols-[130px_1fr_152px_148px] lg:items-center lg:gap-6">
       <img
         className="h-[108px] w-[130px] object-cover"
-        src={asset(reservation.image)}
-        alt={reservation.imageAlt}
+        src={reservationImage(reservation.productId)}
+        alt={reservation.productTitle}
       />
       <div className="min-w-0 font-dot-regular leading-[1.45]">
         <p className="text-xs text-[#707070]">
-          예약번호 {reservation.reservationNumber} · 예약일{" "}
-          {reservation.reservedAt}
+          예약번호 {reservation.reservationCode} · 예약일 {formatDate(reservation.reservedAt)}
         </p>
         <h2 className="mt-[7px] font-dot-medium text-lg text-[#151515]">
-          {reservation.title}
+          {reservation.productTitle}
         </h2>
         <p className="mt-[7px] text-[13px] text-[#151515]">
-          {reservation.dates} · {reservation.details}
+          {formatDate(reservation.departureDate)} ~ {formatDate(reservation.returnDate)} · 성인{" "}
+          {reservation.people}명
         </p>
         <p className="mt-[7px] text-xs text-[#707070]">
-          {reservation.category} · {reservation.departure}
+          {gradeLabel(reservation.grade)} 등급
         </p>
       </div>
       <div className="font-dot-regular leading-[1.45] lg:text-right">
         <p className="font-dot-semibold text-lg text-[#151515]">
-          {currency(reservation.totalPrice)}
+          {currency(reservation.finalAmount)}
         </p>
         <p className="mt-1.5 text-xs text-[#707070]">총 여행금액</p>
       </div>
@@ -522,10 +392,10 @@ function ReservationCard({
         <span
           className={`flex h-7 w-16 items-center justify-center font-dot-semibold text-sm leading-[1.45] ${statusStyle}`}
         >
-          {reservation.status}
+          {status}
         </span>
         <p className="font-dot-regular text-xs leading-[1.45] text-[#707070]">
-          {reservation.statusDetail}
+          {statusDetail(reservation.status)}
         </p>
         <button
           className="ml-auto flex h-9 w-[100px] items-center justify-center border border-[#d9d9d9] bg-white font-dot-regular text-sm text-[#151515] lg:ml-0 cursor-pointer"
@@ -540,40 +410,52 @@ function ReservationCard({
 }
 
 export default function ReservationHistoryPage({
-  reservations: propReservations,
-  onCancelReservation,
+  user,
   initialSelectedId,
 }: {
-  reservations?: Reservation[]
-  onCancelReservation?: (reservationNumber: string) => void
-  initialSelectedId?: string | null
+  user: UserResponse
+  initialSelectedId?: number | null
 }) {
-  const reservations = propReservations || initialReservations
+  const [reservations, setReservations] = useState<ReservationListItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState("")
   const [activeFilter, setActiveFilter] = useState<ReservationFilter>("전체")
-  const [selectedReservationNumber, setSelectedReservationNumber] =
-    useState<string | null>(initialSelectedId || null)
+  const [selectedReservationId, setSelectedReservationId] = useState<number | null>(
+    initialSelectedId ?? null,
+  )
+
+  const load = useCallback(() => {
+    setLoadError("")
+    getMyReservations()
+      .then((list) =>
+        setReservations([...list].sort((a, b) => b.reservedAt.localeCompare(a.reservedAt))),
+      )
+      .catch((error) => setLoadError(errorMessage(error)))
+      .finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
 
   useEffect(() => {
     if (initialSelectedId) {
-      setSelectedReservationNumber(initialSelectedId)
+      setSelectedReservationId(initialSelectedId)
     }
   }, [initialSelectedId])
 
-  const selectedReservation = reservations.find(
-    ({ reservationNumber }) => reservationNumber === selectedReservationNumber,
-  )
+  const countOf = (status: ReservationStatus) =>
+    reservations.filter((r) => statusLabels[r.status] === status).length
+
   const filteredReservations = useMemo(
     () =>
       activeFilter === "전체"
         ? reservations
-        : reservations.filter(({ status }) => status === activeFilter),
+        : reservations.filter(({ status }) => statusLabels[status] === activeFilter),
     [activeFilter, reservations],
   )
-  const cancelReservation = (reservationNumber: string) => {
-    if (onCancelReservation) {
-      onCancelReservation(reservationNumber)
-    }
-  }
+
+  const closeDetail = useCallback(() => setSelectedReservationId(null), [])
 
   return (
     <main className="bg-white text-[#151515]">
@@ -595,9 +477,7 @@ export default function ReservationHistoryPage({
           aria-label="예약 상태 요약"
         >
           {(["대기", "확정", "취소"] as ReservationStatus[]).map((status) => {
-            const count = reservations.filter(
-              (reservation) => reservation.status === status,
-            ).length
+            const count = countOf(status)
             return (
               <button
                 className={`flex min-h-[88px] flex-col items-center justify-center gap-1 font-dot-regular ${
@@ -636,8 +516,7 @@ export default function ReservationHistoryPage({
                 const count =
                   filter === "전체"
                     ? reservations.length
-                    : reservations.filter(({ status }) => status === filter)
-                        .length
+                    : countOf(filter)
                 const active = activeFilter === filter
                 return (
                   <button
@@ -656,7 +535,7 @@ export default function ReservationHistoryPage({
               })}
             </div>
             <p className="font-dot-regular text-[13px] text-[#707070]">
-              최근 1년 · 2025.10.01 ~ 2026.10.01
+              {user.name}님의 전체 예약
             </p>
           </div>
           <div className="mt-5 border-x border-t border-[#d9d9d9]">
@@ -664,15 +543,27 @@ export default function ReservationHistoryPage({
               <p>예약 상품 / 여행 일정</p>
               <p>예약금액 / 예약 상태</p>
             </div>
-            {filteredReservations.map((reservation) => (
-              <ReservationCard
-                reservation={reservation}
-                key={reservation.reservationNumber}
-                onViewDetail={() =>
-                  setSelectedReservationNumber(reservation.reservationNumber)
-                }
-              />
-            ))}
+            {loading ? (
+              <p className="border-b border-[#d9d9d9] px-5 py-12 text-center font-dot-regular text-sm text-[#707070]">
+                예약 내역을 불러오는 중입니다...
+              </p>
+            ) : loadError ? (
+              <p className="border-b border-[#d9d9d9] px-5 py-12 text-center font-dot-regular text-sm text-[#a43d3d]">
+                {loadError}
+              </p>
+            ) : filteredReservations.length === 0 ? (
+              <p className="border-b border-[#d9d9d9] px-5 py-12 text-center font-dot-regular text-sm text-[#707070]">
+                예약 내역이 없습니다.
+              </p>
+            ) : (
+              filteredReservations.map((reservation) => (
+                <ReservationCard
+                  reservation={reservation}
+                  key={reservation.reservationId}
+                  onViewDetail={() => setSelectedReservationId(reservation.reservationId)}
+                />
+              ))
+            )}
           </div>
           <p className="mt-5 font-dot-regular text-xs leading-[1.45] text-[#707070]">
             대기 예약은 담당자 확인 후 확정됩니다. 예약 변경 및 취소는 예약 상세
@@ -680,13 +571,13 @@ export default function ReservationHistoryPage({
           </p>
         </section>
       </div>
-      {selectedReservation && (
+      {selectedReservationId !== null && (
         <ReservationDetailModal
-          reservation={selectedReservation}
-          onClose={() => setSelectedReservationNumber(null)}
-          onCancel={() =>
-            cancelReservation(selectedReservation.reservationNumber)
-          }
+          key={selectedReservationId}
+          reservationId={selectedReservationId}
+          user={user}
+          onClose={closeDetail}
+          onCanceled={load}
         />
       )}
     </main>

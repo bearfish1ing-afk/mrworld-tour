@@ -39,7 +39,7 @@ services:
     restart: unless-stopped
 
   nginx:
-    #관리자 화면 + nginx 설정이 들어 있는 이미지 (Dockerfile.web)
+    #고객 화면(/) + 관리자 화면(/admin/) + nginx 설정이 들어 있는 이미지 (Dockerfile.web)
     image: ghcr.io/bearfish1ing-afk/mrworld-tour-web:latest
     container_name: nginx-container
     ports:

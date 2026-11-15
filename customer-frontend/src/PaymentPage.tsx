@@ -1,6 +1,21 @@
 import { useState, type ReactNode } from "react"
+import { errorMessage } from "./api/client"
+import { createReservation } from "./api/customer"
+import type { ReservationCreateResponse, UserResponse } from "./api/types"
+import { formatDateWithDay, type SelectedProduct } from "./api/view"
 import type { ReservationSelection } from "./ProductDetailPage"
-import type { SelectedProduct } from "./ThemeTravelPage"
+
+const priceItemLabels: Record<string, string> = {
+  GRADE: "투어 등급",
+  HOTEL: "호텔",
+  MEAL: "식사",
+  VEHICLE: "차량",
+  DRINK: "음료",
+  ETC: "기타",
+}
+
+const formatPhone = (phone: string) =>
+  phone.replace(/^(\d{3})(\d{4})(\d{4})$/, "$1-$2-$3")
 
 const paymentAsset = (name: string) => `/assets/payment-6001-1589/${name}`
 
@@ -75,28 +90,30 @@ function CheckBox({
 export default function PaymentPage({
   product,
   reservation,
-  username,
+  user,
   onBack,
   onPaymentSuccess,
 }: {
   product: SelectedProduct
   reservation: ReservationSelection
-  username: string
+  user: UserResponse
   onBack: () => void
-  onPaymentSuccess?: (paymentInfo: { paymentMethod: string; finalPrice: number }) => void
+  onPaymentSuccess?: (result: ReservationCreateResponse) => void
 }) {
   const [paymentMethod, setPaymentMethod] =
     useState<"card" | "transfer" | "virtual">("card")
   const [agreements, setAgreements] = useState([true, true, true, true])
-  const [complete, setComplete] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState("")
+  const [complete, setComplete] = useState<ReservationCreateResponse | null>(null)
   const [sameAsBooker, setSameAsBooker] = useState(true);
 
-  const [bookerName, setBookerName] = useState(username || "김민지");
-  const [bookerPhone, setBookerPhone] = useState("010-1234-5678");
+  const [bookerName, setBookerName] = useState(user.name);
+  const [bookerPhone, setBookerPhone] = useState(formatPhone(user.phoneNum));
 
-  const [travelerName, setTravelerName] = useState(username || "김민지");
-  const [travelerPhone, setTravelerPhone] = useState("010-1234-5678");
-  const [travelerBirth, setTravelerBirth] = useState("1994.05.18");
+  const [travelerName, setTravelerName] = useState(user.name);
+  const [travelerPhone, setTravelerPhone] = useState(formatPhone(user.phoneNum));
+  const [travelerBirth, setTravelerBirth] = useState("");
   const [passportLastName, setPassportLastName] = useState("");
   const [passportFirstName, setPassportFirstName] = useState("");
 
@@ -122,25 +139,39 @@ export default function PaymentPage({
   const signedCurrency = (price: number, sign: "+" | "-") =>
     `${sign}${currency(price)}`
   const allAgreed = agreements.every(Boolean)
-  const membershipDiscount = Math.floor(reservation.totalPrice * 0.01)
-  const finalPrice = reservation.totalPrice - membershipDiscount
-  const extras = reservation.additionalOptions.map(
-    ({ label, price }) => `${label} ${signedCurrency(price, "+")}`,
-  )
+  const { price } = reservation
+  const finalPrice = price.finalAmount
+  const membershipDiscount = price.discountAmount
+  const extras = reservation.drinkLabels
+  // 기본 선택(차액 0원)은 빼고 추가금이 있는 항목만 보여줌
+  const chargedItems = price.items.filter((item) => item.amount !== 0)
+  const paymentLabel =
+    paymentMethod === "card"
+      ? "신용·체크카드 · 일시불"
+      : paymentMethod === "transfer"
+      ? "실시간 계좌이체"
+      : "가상계좌"
 
-  const handlePaymentSubmit = () => {
-    setComplete(true)
-    setTimeout(() => {
-      onPaymentSuccess?.({
-        paymentMethod:
-          paymentMethod === "card"
-            ? "신용·체크카드 · 일시불"
-            : paymentMethod === "transfer"
-            ? "실시간 계좌이체"
-            : "가상계좌",
-        finalPrice,
+  const handlePaymentSubmit = async () => {
+    if (submitting || complete) return
+    if (!bookerName.trim() || !bookerPhone.trim()) {
+      setSubmitError("예약자 이름과 휴대전화를 입력해 주세요.")
+      return
+    }
+    setSubmitting(true)
+    setSubmitError("")
+    try {
+      const result = await createReservation({
+        ...reservation.request,
+        paymentMethod: paymentLabel,
       })
-    }, 800)
+      setComplete(result)
+      onPaymentSuccess?.(result)
+    } catch (error) {
+      setSubmitError(errorMessage(error))
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -160,7 +191,7 @@ export default function PaymentPage({
           <div className="flex flex-col gap-6 border border-[#d9d9d9] p-5 md:flex-row md:items-center">
             <img
               className="h-[130px] w-[154px] object-cover"
-              src={paymentAsset("8a4c7.png")}
+              src={product.image}
               alt=""
             />
             <div className="min-w-0 flex-1 space-y-2">
@@ -171,10 +202,11 @@ export default function PaymentPage({
                 {product.title}
               </h2>
               <p className="font-dot-regular text-[13px] leading-[1.45]">
-                여행 시작일 2026.10.24 (토) · 예약 인원 {reservation.people}명
+                여행 시작일 {formatDateWithDay(reservation.departureDate)} · 예약 인원{" "}
+                {reservation.people}명
               </p>
               <p className="font-dot-regular text-xs leading-[1.45] text-[#707070]">
-                투어 등급: {product.badge}
+                투어 등급: {reservation.gradeLabel}
               </p>
             </div>
             <div className="md:w-[190px] md:text-right">
@@ -189,8 +221,8 @@ export default function PaymentPage({
           <div className="border-x border-t border-[#d9d9d9]">
             <InfoRow label="서비스 옵션" required={false}>
               <p className="font-dot-regular text-[13px]">
-                {reservation.tourGrade} · {reservation.hotel} ·{" "}
-                {reservation.vehicle} · {reservation.meal}
+                {reservation.gradeLabel} · {reservation.hotelLabel} ·{" "}
+                {reservation.vehicleLabel} · {reservation.mealLabel}
               </p>
             </InfoRow>
             <InfoRow label="추가 옵션" required={false}>
@@ -201,7 +233,7 @@ export default function PaymentPage({
           </div>
           <div className="bg-[#f0f9fb] px-5 py-3 font-dot-regular text-xs leading-[1.6] text-[#707070]">
             <strong className="font-dot-semibold text-[#151515]">
-              각 테마는 3명 이상 신청 시 예약 확정됩니다.
+              상품별 최소 출발 인원이 모이면 예약이 확정됩니다.
             </strong>
             <br />
             현재 선택 인원은 {reservation.people}명입니다. 결제 후에도 예약은
@@ -261,6 +293,7 @@ export default function PaymentPage({
               <input
                 className={`${inputClass} max-w-80`}
                 value={travelerBirth}
+                placeholder="예: 1994.05.18"
                 onChange={(e) => setTravelerBirth(e.target.value)}
               />
             </InfoRow>
@@ -413,21 +446,21 @@ export default function PaymentPage({
             <div className="space-y-3 border-b border-[#d9d9d9] py-5 font-dot-regular text-sm">
               <div className="flex justify-between">
                 <span>기본 가격 · {reservation.people}명</span>
-                <span>{currency(reservation.baseTotal)}</span>
+                <span>{currency(price.baseAmount)}</span>
               </div>
-              {[
-                ...reservation.detailOptions,
-                ...reservation.additionalOptions,
-              ].map(({ label, price }) => (
-                <div className="flex justify-between" key={label}>
-                  <span>{label}</span>
-                  <span className="text-[#1596b4]">
-                    {signedCurrency(price, "+")}
+              {chargedItems.map((item) => (
+                <div className="flex justify-between gap-3" key={`${item.type}-${item.sourceId}`}>
+                  <span>
+                    {priceItemLabels[item.type] ?? item.type} · {item.name}
+                    {item.quantity > 1 ? ` × ${item.quantity}` : ""}
+                  </span>
+                  <span className="shrink-0 text-[#1596b4]">
+                    {signedCurrency(Math.abs(item.amount), item.amount < 0 ? "-" : "+")}
                   </span>
                 </div>
               ))}
               <div className="flex justify-between text-[#1596b4]">
-                <span>실버 회원 등급 할인 (1%)</span>
+                <span>회원 등급 할인</span>
                 <span>{signedCurrency(membershipDiscount, "-")}</span>
               </div>
             </div>
@@ -443,11 +476,7 @@ export default function PaymentPage({
             <div className="border-y border-[#d9d9d9] py-4">
               <p className="font-dot-medium text-sm">결제 수단</p>
               <p className="mt-2 font-dot-regular text-xs text-[#707070]">
-                {paymentMethod === "card"
-                  ? "신한카드 · 일시불"
-                  : paymentMethod === "transfer"
-                    ? "실시간 계좌이체"
-                    : "가상계좌"}
+                {paymentLabel}
               </p>
             </div>
             <p className="py-4 font-dot-regular text-xs leading-[1.55] text-[#707070]">
@@ -457,11 +486,19 @@ export default function PaymentPage({
             <button
               className="h-14 w-full rounded-md bg-[#1596b4] font-dot-bold text-base text-white disabled:cursor-not-allowed disabled:bg-[#9fcbd5] cursor-pointer"
               type="button"
-              disabled={!allAgreed}
+              disabled={!allAgreed || submitting || Boolean(complete)}
               onClick={handlePaymentSubmit}
             >
-              {currency(finalPrice)} 결제하기
+              {submitting ? "예약 처리 중..." : `${currency(finalPrice)} 결제하기`}
             </button>
+            {submitError && (
+              <p
+                className="mt-3 whitespace-pre-line bg-[#fff7f7] p-3 text-center font-dot-regular text-xs text-[#a43d3d]"
+                role="alert"
+              >
+                {submitError}
+              </p>
+            )}
             <button
               className="mt-3 h-9 w-full border border-[#d9d9d9] font-dot-regular text-sm cursor-pointer"
               type="button"
@@ -474,7 +511,7 @@ export default function PaymentPage({
                 className="mt-4 bg-[#f0f9fb] p-3 text-center font-dot-semibold text-sm text-[#1596b4]"
                 role="status"
               >
-                결제가 완료되었습니다.
+                예약이 접수되었습니다. (예약번호 {complete.reservationCode})
               </p>
             )}
             <div className="mt-6 bg-[#f0f9fb] p-5">

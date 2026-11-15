@@ -1,4 +1,5 @@
-export const assetPathPrefix = "/assets";
+// vite base(/admin/) 기준 경로
+export const assetPathPrefix = `${import.meta.env.BASE_URL}assets`;
 export const assets = {
   logo: `${assetPathPrefix}/5e724.png`,
   search: `${assetPathPrefix}/8ce09.svg`,

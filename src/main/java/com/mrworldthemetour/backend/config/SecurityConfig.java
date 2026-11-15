@@ -228,9 +228,9 @@ public class SecurityConfig {
 
                         .requestMatchers(
                                 HttpMethod.GET,
-                                "/products",
-                                "/products/search",
-                                "/products/{productId}"
+                                "/api/products",
+                                "/api/products/search",
+                                "/api/products/{productId}"
                         ).permitAll()
 
                         // 로그인 전에도 상품 상세에서 예상 금액 확인 가능

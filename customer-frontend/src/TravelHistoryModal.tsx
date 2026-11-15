@@ -1,40 +1,30 @@
 import { useEffect, useRef } from "react"
+import type { ReservationListItem } from "./api/types"
+import { gradeLabel, statusLabels } from "./api/view"
 
-const travelHistory = [
-  {
-    dates: "26/09/29~26/10/3",
-    relativeDate: "최근",
-    title: "[테마] 나라 도시 투어",
-    grade: "그랜드",
-    options: "5성급 호텔 / 2인 고급 차량 / 고급 레스토랑",
-    price: "₩ 2,000,000",
-  },
-  {
-    dates: "26/08/12~26/08/15",
-    relativeDate: "1주 전",
-    title: "[테마] 자연 휴양지 투어",
-    grade: "클래식",
-    options: "4성급 호텔 / 공항 픽업 / 중식 포함",
-    price: "₩ 1,250,000",
-  },
-  {
-    dates: "26/07/05~26/07/08",
-    relativeDate: "1개월 전",
-    title: "[테마] 문화 체험 투어",
-    grade: "프리미엄",
-    options: "3성급 게스트하우스 / 공유 차량 / 전일정 가이드",
-    price: "₩ 850,000",
-  },
-]
+// "3일 전", "2주 전" 같은 상대 날짜
+function relativeDate(value: string) {
+  const diff = Date.now() - new Date(value).getTime()
+  const days = Math.floor(diff / 86_400_000)
+  if (Number.isNaN(days) || days < 1) return "최근"
+  if (days < 7) return `${days}일 전`
+  if (days < 30) return `${Math.floor(days / 7)}주 전`
+  if (days < 365) return `${Math.floor(days / 30)}개월 전`
+  return `${Math.floor(days / 365)}년 전`
+}
+
+const shortDate = (value: string) => value.slice(2, 10).replace(/-/g, "/")
 
 export default function TravelHistoryModal({
+  items,
   onClose,
   onViewAll,
   onSelectHistory,
 }: {
+  items: ReservationListItem[]
   onClose: () => void
   onViewAll: () => void
-  onSelectHistory?: (index: number) => void
+  onSelectHistory?: (reservationId: number) => void
 }) {
   const viewAllButton = useRef<HTMLButtonElement>(null)
 
@@ -77,18 +67,18 @@ export default function TravelHistoryModal({
         </div>
 
         <div>
-          {travelHistory.map((history, index) => (
+          {items.map((history) => (
             <article
               className="flex flex-col gap-3 border-b border-[#e5e7eb] py-4 cursor-pointer hover:bg-[#f9fafb] transition-colors rounded-lg px-2"
-              key={history.dates}
-              onClick={() => onSelectHistory?.(index)}
+              key={history.reservationId}
+              onClick={() => onSelectHistory?.(history.reservationId)}
             >
               <div className="flex items-start justify-between">
                 <p className="font-dot-semibold text-sm leading-[1.1] tracking-[-0.28px] text-[#374151]">
-                  {history.dates}
+                  {shortDate(history.departureDate)}~{shortDate(history.returnDate)}
                 </p>
                 <p className="font-dot-medium text-xs leading-normal text-[#6b7280]">
-                  {history.relativeDate}
+                  {relativeDate(history.reservedAt)}
                 </p>
               </div>
               <div className="flex items-start gap-3">
@@ -98,16 +88,16 @@ export default function TravelHistoryModal({
                 />
                 <div className="min-w-0">
                   <h3 className="font-dot-bold text-base leading-[1.3] tracking-[-0.32px] text-[#111827]">
-                    {history.title}
+                    {history.productTitle}
                   </h3>
                   <p className="mt-1 font-dot-medium text-xs leading-[1.3] tracking-[-0.24px] text-[#6b7280]">
-                    투어 등급: {history.grade}
+                    투어 등급: {gradeLabel(history.grade)}
                   </p>
                   <p className="mt-1 font-dot-regular text-xs leading-[1.3] tracking-[-0.24px] text-[#6b7280]">
-                    세부 옵션: {history.options}
+                    성인 {history.people}명 · {statusLabels[history.status]}
                   </p>
                   <p className="mt-1 font-dot-bold text-sm leading-[1.3] tracking-[-0.28px] text-[#111827]">
-                    {history.price}
+                    ₩ {history.finalAmount.toLocaleString("ko-KR")}
                   </p>
                 </div>
               </div>

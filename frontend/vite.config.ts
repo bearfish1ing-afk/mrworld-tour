@@ -4,6 +4,8 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 
 export default defineConfig({
+  // 관리자 화면은 /admin/ 아래에서 서비스 (고객 화면이 / 사용)
+  base: '/admin/',
   plugins: [
     react(),
     tailwindcss(),

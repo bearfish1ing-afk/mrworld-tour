@@ -1,4 +1,7 @@
-import React, { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { clearToken, errorMessage, setToken } from "./api/client";
+import { getMe, login, requestSmsCode, signup, verifySmsCode } from "./api/customer";
+import type { UserResponse } from "./api/types";
 
 const asset = (name: string) => `/assets/${name}`;
 
@@ -61,19 +64,33 @@ export function CustomerLogin({
   onGoSignup,
 }: {
   onHome?: () => void;
-  onLoginSuccess: (email: string) => void;
+  onLoginSuccess: (user: UserResponse) => void;
   onGoSignup: () => void;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      alert("이메일과 비밀번호를 모두 입력해 주세요.");
+      setMessage("이메일과 비밀번호를 모두 입력해 주세요.");
       return;
     }
-    onLoginSuccess(email);
+    setSubmitting(true);
+    setMessage("");
+    try {
+      const { accessToken } = await login({ email: email.trim(), password });
+      setToken(accessToken);
+      const user = await getMe();
+      onLoginSuccess(user);
+    } catch (error) {
+      clearToken();
+      setMessage(errorMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -102,11 +119,17 @@ export function CustomerLogin({
                 className="mt-2.5 h-[50px] w-full border border-black bg-white px-5 text-base outline-none focus:border-[#1596b4]"
               />
             </label>
+            {message && (
+              <p role="alert" className="mb-4 whitespace-pre-line text-center text-sm font-medium text-[#c33]">
+                {message}
+              </p>
+            )}
             <button
               type="submit"
-              className="h-[50px] w-full rounded-[10px] bg-[#1596b4] text-lg font-bold text-white hover:bg-[#117f99] transition cursor-pointer"
+              disabled={submitting}
+              className="h-[50px] w-full rounded-[10px] bg-[#1596b4] text-lg font-bold text-white hover:bg-[#117f99] transition cursor-pointer disabled:cursor-wait disabled:bg-[#9fcbd5]"
             >
-              로그인
+              {submitting ? "로그인 중..." : "로그인"}
             </button>
             <button
               type="button"
@@ -136,7 +159,9 @@ type CustomerSignupForm = {
   passwordConfirmation: string;
 };
 
-const demoPhoneCode = "123456";
+// 백엔드 검증 규칙과 동일 (SmsDto.SendRequest, AuthDto.SignupRequest)
+const phonePattern = /^010\d{8}$/;
+const passwordPattern = /^[\x21-\x7E]{8,20}$/;
 
 const signupInput =
   "h-12 w-full rounded-[4px] border border-[#9a9a9a] bg-white px-3.5 font-['42dot_Sans:Regular'] text-[15px] outline-none placeholder:text-[#8a8a8a] focus:border-[#1596b4]";
@@ -212,9 +237,25 @@ export function CustomerSignup({
   const [step, setStep] = useState<SignupStep>(1);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [identityTerms, setIdentityTerms] = useState([false, false, false]);
-  const [phoneCodeRequested, setPhoneCodeRequested] = useState(false);
-  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [smsRequestId, setSmsRequestId] = useState<string | null>(null);
+  const [signupProof, setSignupProof] = useState<string | null>(null);
+  const phoneVerified = signupProof !== null;
+  const [resendSeconds, setResendSeconds] = useState(0);
+  const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [messageOk, setMessageOk] = useState(false);
+
+  // 인증번호 재요청 대기 시간 카운트다운
+  useEffect(() => {
+    if (resendSeconds <= 0) return;
+    const timer = setTimeout(() => setResendSeconds((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendSeconds]);
+
+  const showMessage = (text: string, ok = false) => {
+    setMessage(text);
+    setMessageOk(ok);
+  };
 
   const [form, setForm] = useState<CustomerSignupForm>({
     name: "",
@@ -231,25 +272,89 @@ export function CustomerSignup({
   const update = (field: keyof CustomerSignupForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
     setMessage("");
-    if (field === "verificationCode") setPhoneVerified(false);
+    // 번호를 바꾸면 인증을 처음부터 다시 받아야 함
+    if (field === "phone") {
+      setSmsRequestId(null);
+      setSignupProof(null);
+    }
   };
 
-  const requestPhoneCode = () => {
+  const requestPhoneCode = async () => {
     if (!form.name || !form.birthDate || !form.carrier || !form.phone) {
-      setMessage("이름, 생년월일, 통신사, 휴대폰 번호를 먼저 입력해 주세요.");
+      showMessage("이름, 생년월일, 통신사, 휴대폰 번호를 먼저 입력해 주세요.");
       return;
     }
-    setPhoneCodeRequested(true);
-    setMessage(`인증번호가 발송되었습니다. 데모 인증번호는 ${demoPhoneCode}입니다.`);
+    if (!phonePattern.test(form.phone)) {
+      showMessage("휴대폰 번호는 010으로 시작하는 11자리 숫자로 입력해 주세요.");
+      return;
+    }
+    if (resendSeconds > 0) return;
+    setBusy(true);
+    try {
+      const res = await requestSmsCode(form.phone);
+      setSmsRequestId(res.requestId);
+      setSignupProof(null);
+      setResendSeconds(res.resendAfter);
+      showMessage(
+        `인증번호가 발송되었습니다. ${Math.floor(res.expiresIn / 60)}분 안에 입력해 주세요.`,
+        true,
+      );
+    } catch (error) {
+      showMessage(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const verifyPhone = () => {
-    const valid = phoneCodeRequested && form.verificationCode === demoPhoneCode;
-    setPhoneVerified(valid);
-    setMessage(valid ? "휴대폰 본인 인증이 완료되었습니다." : "인증번호를 확인해 주세요.");
+  const verifyPhone = async () => {
+    if (!smsRequestId) {
+      showMessage("먼저 인증번호를 요청해 주세요.");
+      return;
+    }
+    if (!/^\d{6}$/.test(form.verificationCode)) {
+      showMessage("인증번호 6자리를 입력해 주세요.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await verifySmsCode(smsRequestId, form.verificationCode);
+      setSignupProof(res.signupProof);
+      showMessage("휴대폰 본인 인증이 완료되었습니다.", true);
+    } catch (error) {
+      setSignupProof(null);
+      showMessage(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitSignup = async () => {
+    if (!signupProof) {
+      showMessage("휴대폰 인증이 만료되었습니다. 본인 인증을 다시 진행해 주세요.");
+      setStep(2);
+      return;
+    }
+    setBusy(true);
+    try {
+      await signup({
+        email: form.email.trim(),
+        password: form.password,
+        phoneNum: form.phone,
+        name: form.name.trim(),
+        nickname: null,
+        address: form.address.trim(),
+        signupProof,
+      });
+      setStep(4);
+    } catch (error) {
+      showMessage(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const next = () => {
+    if (busy) return;
     setMessage("");
     if (step === 1) {
       if (!termsAccepted) {
@@ -265,13 +370,13 @@ export function CustomerSignup({
         !form.name ||
         !/^\d{8}$/.test(form.birthDate) ||
         !form.carrier ||
-        !/^\d{10,11}$/.test(form.phone)
+        !phonePattern.test(form.phone)
       ) {
-        setMessage("본인 인증 정보를 정확히 입력해 주세요.");
+        showMessage("본인 인증 정보를 정확히 입력해 주세요.");
         return;
       }
       if (!phoneVerified || identityTerms.some((accepted) => !accepted)) {
-        setMessage("인증번호 확인과 필수 동의를 모두 완료해 주세요.");
+        showMessage("인증번호 확인과 필수 동의를 모두 완료해 주세요.");
         return;
       }
       setStep(3);
@@ -279,23 +384,19 @@ export function CustomerSignup({
     }
 
     if (step === 3) {
-      if (
-        !form.address ||
-        !form.email ||
-        !/^(?=.*[A-Za-z])(?=.*\d).{10,}$/.test(form.password)
-      ) {
-        setMessage("회원 정보를 모두 입력하고 비밀번호 조건(영문·숫자 포함 10자 이상)을 확인해 주세요.");
+      if (!form.address || !form.email || !passwordPattern.test(form.password)) {
+        showMessage("회원 정보를 모두 입력하고 비밀번호 조건(공백 없이 8~20자)을 확인해 주세요.");
         return;
       }
       if (!form.passwordConfirmation) {
-        setMessage("비밀번호 확인을 입력해 주세요.");
+        showMessage("비밀번호 확인을 입력해 주세요.");
         return;
       }
       if (form.password !== form.passwordConfirmation) {
-        setMessage("비밀번호가 일치하지 않습니다. 다시 확인해 주세요.");
+        showMessage("비밀번호가 일치하지 않습니다. 다시 확인해 주세요.");
         return;
       }
-      setStep(4);
+      void submitSignup();
     }
   };
 
@@ -407,9 +508,14 @@ export function CustomerSignup({
                       <button
                         type="button"
                         onClick={requestPhoneCode}
-                        className="w-[136px] shrink-0 rounded-md bg-[#1596b4] text-sm font-semibold text-white hover:bg-[#117f99] cursor-pointer"
+                        disabled={busy || resendSeconds > 0}
+                        className="w-[136px] shrink-0 rounded-md bg-[#1596b4] text-sm font-semibold text-white hover:bg-[#117f99] cursor-pointer disabled:cursor-not-allowed disabled:bg-[#9fcbd5]"
                       >
-                        인증번호 요청
+                        {resendSeconds > 0
+                          ? `재요청 ${resendSeconds}초`
+                          : smsRequestId
+                          ? "인증번호 재요청"
+                          : "인증번호 요청"}
                       </button>
                     </div>
                   </SignupField>
@@ -429,6 +535,7 @@ export function CustomerSignup({
                     <button
                       type="button"
                       onClick={verifyPhone}
+                      disabled={busy || phoneVerified}
                       className="w-[136px] shrink-0 rounded-md border border-[#1596b4] bg-white text-sm font-semibold text-[#1596b4] hover:bg-[#e7f5f7] cursor-pointer"
                     >
                       {phoneVerified ? "인증 완료" : "확인"}
@@ -502,7 +609,7 @@ export function CustomerSignup({
                       autoComplete="new-password"
                       className={signupInput}
                     />
-                    <p className="mt-2 text-sm text-[#666]">영문자, 숫자를 포함 10글자 이상</p>
+                    <p className="mt-2 text-sm text-[#666]">공백 없이 영문, 숫자, 특수문자 8~20자</p>
                   </SignupField>
                   <SignupField label="비밀번호 확인">
                     <input
@@ -540,8 +647,8 @@ export function CustomerSignup({
             {message && (
               <p
                 role="alert"
-                className={`-mt-5 text-center text-sm font-medium ${
-                  phoneVerified ? "text-[#117f99]" : "text-[#c33]"
+                className={`-mt-5 whitespace-pre-line text-center text-sm font-medium ${
+                  messageOk ? "text-[#117f99]" : "text-[#c33]"
                 }`}
               >
                 {message}
@@ -559,9 +666,10 @@ export function CustomerSignup({
               <button
                 type="button"
                 onClick={next}
-                className="h-[54px] w-[150px] rounded-md bg-[#1596b4] font-['42dot_Sans:SemiBold'] text-base font-semibold text-white hover:bg-[#117f99] sm:h-[61px] sm:w-[196px] cursor-pointer"
+                disabled={busy}
+                className="h-[54px] w-[150px] rounded-md bg-[#1596b4] font-['42dot_Sans:SemiBold'] text-base font-semibold text-white hover:bg-[#117f99] sm:h-[61px] sm:w-[196px] cursor-pointer disabled:cursor-wait disabled:bg-[#9fcbd5]"
               >
-                다음
+                {step === 3 ? (busy ? "가입 중..." : "가입하기") : "다음"}
               </button>
             </div>
           </div>
