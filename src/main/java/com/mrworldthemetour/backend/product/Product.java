@@ -56,6 +56,11 @@ public class Product {
     @Column(name = "country", length = 50)
     private String country;
 
+    // 여행 지역(대륙) - 고객 화면 지역 필터에 사용
+    @Enumerated(EnumType.STRING)
+    @Column(name = "region", length = 20)
+    private ProductRegion region;
+
     @Column(name = "duration", length = 20)
     private String duration;
 
@@ -157,6 +162,10 @@ public class Product {
     // 모집 마감일까지 최소 인원 미달이면 출발 취소
     public void cancelDeparture() {
         this.status = ProductStatus.CANCELED;
+    }
+
+    public void changeRegion(ProductRegion region) {
+        this.region = java.util.Objects.requireNonNull(region, "여행 지역이 필요합니다.");
     }
 
     public void changeStatus(ProductStatus status) {

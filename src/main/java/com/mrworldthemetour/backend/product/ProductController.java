@@ -43,6 +43,10 @@ public class ProductController {
             @RequestParam(name = "themeId", required = false)
             Long themeId,
 
+            // 여행 지역(대륙): DOMESTIC, ASIA, EUROPE, AMERICA, OCEANIA, AFRICA
+            @RequestParam(name = "region", required = false)
+            ProductRegion region,
+
             @RequestParam(name = "departureFrom", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             LocalDate departureFrom,
@@ -69,6 +73,7 @@ public class ProductController {
         return ResponseEntity.ok(
                 productService.getProducts(
                         themeId,
+                        region,
                         departureFrom,
                         departureTo,
                         minPrice,

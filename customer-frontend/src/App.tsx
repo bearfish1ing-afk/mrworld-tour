@@ -130,7 +130,11 @@ function Header({
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     recognition.onresult = (event) => {
-      const transcript = event.results[0]?.[0]?.transcript?.trim();
+      // 브라우저가 붙이는 문장부호("일본." 등) 제거
+      const transcript = event.results[0]?.[0]?.transcript
+        ?.replace(/[.,!?。、…~]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
       if (transcript) onVoiceSearch?.(transcript);
     };
     recognition.onerror = (event) => {
@@ -690,7 +694,9 @@ export default function App() {
             // 지난 예약이 있으면 최근 3건을 보여줌
             getMyReservations()
               .then((list) => {
+                // 취소된 예약은 팝업에서 제외
                 const recent = [...list]
+                  .filter((r) => r.status !== "CANCELED")
                   .sort((a, b) => b.reservedAt.localeCompare(a.reservedAt))
                   .slice(0, 3);
                 setTravelHistory(recent);

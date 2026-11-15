@@ -6,6 +6,7 @@ import type {
   Page,
   ProductCreateRequest,
   ProductDetail,
+  ProductRegion,
   ProductStatus,
   ProductSummary,
   ReservationChangeRequest,
@@ -40,6 +41,10 @@ export const fetchProductDetail = (productId: number) =>
 
 export const createProduct = (request: ProductCreateRequest) =>
   api<{ productId: number }>("/api/admin/products", { method: "POST", body: request });
+
+// 여행 지역(대륙) 변경
+export const changeProductRegion = (productId: number, region: ProductRegion) =>
+  api<void>(`/api/admin/products/${productId}/region`, { method: "PATCH", body: { region } });
 
 // CANCELED면 남은 예약 일괄 취소 후 { canceledReservations } 반환, 나머지는 응답 본문 없음
 export const changeProductStatus = (productId: number, status: ProductStatus) =>

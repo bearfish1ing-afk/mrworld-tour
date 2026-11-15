@@ -2,6 +2,7 @@
 import type {
   HotelLevel,
   MealType,
+  ProductRegion,
   ProductStatus,
   ReservationStatus,
   StockChangeType,
@@ -30,6 +31,15 @@ export function allowedByMinGrade(
   if (option.mealType) return MEAL_RANK[option.mealType] >= min;
   return true;
 }
+
+export const REGION_LABEL: Record<ProductRegion, string> = {
+  DOMESTIC: "국내",
+  ASIA: "아시아",
+  EUROPE: "유럽",
+  AMERICA: "아메리카",
+  OCEANIA: "오세아니아",
+  AFRICA: "아프리카",
+};
 
 export const PRODUCT_STATUS_LABEL: Record<ProductStatus, string> = {
   RECRUITING: "모집 중",

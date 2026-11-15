@@ -8,6 +8,7 @@ export type HotelLevel = "STAR_3" | "STAR_4" | "STAR_5";
 export type MealType = "LUNCHBOX" | "LOCAL_RESTAURANT" | "FINE_DINING";
 export type VehicleType = "COUPLE_LUXURY" | "VAN_10_LUXURY" | "PRIVATE_LIMOUSINE";
 export type StockChangeType = "RECEIVE" | "ALLOCATE" | "RESTORE";
+export type ProductRegion = "DOMESTIC" | "ASIA" | "EUROPE" | "AMERICA" | "OCEANIA" | "AFRICA";
 
 export type Page<T> = {
   content: T[];
@@ -46,6 +47,7 @@ export type ProductSummary = {
   productCode: string;
   title: string;
   country: string;
+  region: ProductRegion | null; // 대륙 미지정(기존 상품)이면 null
   duration: string | null;
   basePrice: number;
   status: ProductStatus;
@@ -102,6 +104,7 @@ export type ProductCreateRequest = {
   productCode: string;
   title: string;
   country: string;
+  region: ProductRegion;
   duration: string;
   description: string;
   basePrice: number;

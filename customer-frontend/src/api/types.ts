@@ -43,6 +43,8 @@ export type VehicleType = "COUPLE_LUXURY" | "VAN_10_LUXURY" | "PRIVATE_LIMOUSINE
 export type HotelLevel = "STAR_3" | "STAR_4" | "STAR_5";
 export type MealType = "LUNCHBOX" | "LOCAL_RESTAURANT" | "FINE_DINING";
 export type ProductOptionType = "HOTEL" | "MEAL" | "VEHICLE" | "DRINK";
+// 여행 지역(대륙) - 관리자가 상품 등록 시 선택
+export type ProductRegion = "DOMESTIC" | "ASIA" | "EUROPE" | "AMERICA" | "OCEANIA" | "AFRICA";
 
 export type ThemeResponse = {
   id: number;
@@ -58,6 +60,7 @@ export type ProductSummary = {
   productCode: string;
   title: string;
   country: string;
+  region: ProductRegion | null;
   duration: string | null;
   basePrice: number;
   status: ProductStatus;
@@ -113,6 +116,7 @@ export type ProductDetail = {
 
 export type ProductSearchParams = {
   themeId?: number;
+  region?: ProductRegion;
   departureFrom?: string;
   departureTo?: string;
   minPrice?: number;

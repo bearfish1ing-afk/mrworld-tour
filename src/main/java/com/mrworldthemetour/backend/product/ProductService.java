@@ -38,6 +38,21 @@ public class ProductService {
             int page,
             int size
     ) {
+        return getProducts(themeId, null, departureFrom, departureTo,
+                minPrice, maxPrice, keyword, page, size);
+    } //지역 조건 없는 검색 (음성 검색 등)
+
+    public ProductDto.PageResponse getProducts(
+            Long themeId,
+            ProductRegion region,
+            LocalDate departureFrom,
+            LocalDate departureTo,
+            Long minPrice,
+            Long maxPrice,
+            String keyword,
+            int page,
+            int size
+    ) {
         validateSearch(
                 themeId,
                 departureFrom,
@@ -61,6 +76,7 @@ public class ProductService {
                 PUBLIC_STATUSES,
                 LocalDateTime.now(),
                 themeId,
+                region,
                 departureFrom,
                 departureTo,
                 minPrice,
@@ -148,6 +164,12 @@ public class ProductService {
         );
     }
 
+    // 여행 지역(대륙) 변경
+    @Transactional
+    public void changeRegion(Long productId, ProductRegion region) {
+        requireProduct(productId).changeRegion(region);
+    }
+
     // 여행 상품 판매 상태 변경
     @Transactional
     public void changeStatus(Long productId, ProductStatus status) {
@@ -229,10 +251,18 @@ public class ProductService {
                 resolvePremiumDrinkIndex(request); // 음료 제약 검증
             }
         }
-        Product product = productRepository.save(new Product(theme, request.productCode(),
+        ProductRegion region = request.region() != null
+                ? request.region()
+                : ProductRegion.guessFromCountry(request.country());
+        if (region == null) {
+            throw invalidSearch("여행 지역(대륙)을 선택해 주세요.");
+        }
+        Product newProduct = new Product(theme, request.productCode(),
                 request.title(), request.country(), request.duration(), request.description(),
                 request.basePrice(), request.status(), request.departureDate(), request.returnDate(),
-                request.deadline(), request.maxPeople(), request.minPeople()));
+                request.deadline(), request.maxPeople(), request.minPeople());
+        newProduct.changeRegion(region);
+        Product product = productRepository.save(newProduct);
         java.util.ArrayList<ProductOption> options = new java.util.ArrayList<>();
         for (var option : request.options()) {
             Long id = addOption(product.getId(), option).id();

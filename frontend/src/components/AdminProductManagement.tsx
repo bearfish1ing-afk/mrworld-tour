@@ -11,18 +11,20 @@ import {
   secondaryButton,
 } from "./AdminCommon";
 import {
+  changeProductRegion,
   changeProductStatus,
   createProduct,
   fetchProductDetail,
   fetchProducts,
 } from "../api/admin";
 import { errorMessage } from "../api/client";
-import { GRADE_LABEL, PRODUCT_STATUS_LABEL, allowedByMinGrade, dateTime, won } from "../api/labels";
+import { GRADE_LABEL, PRODUCT_STATUS_LABEL, REGION_LABEL, allowedByMinGrade, dateTime, won } from "../api/labels";
 import type {
   HotelLevel,
   MealType,
   OptionCreateRequest,
   ProductDetail,
+  ProductRegion,
   ProductStatus,
   ProductSummary,
   TravelGrade,
@@ -73,6 +75,8 @@ const GRADE_BASE: Record<TourGradeKey, { hotel: HotelLevel; meal: MealType; desc
   GRAND: { hotel: "STAR_4", meal: "LOCAL_RESTAURANT", desc: "4등급 숙소 + 현지식 레스토랑" },
   PREMIUM: { hotel: "STAR_5", meal: "FINE_DINING", desc: "5등급 숙소 + 고급 레스토랑 + 샴페인 음료" },
 };
+
+const REGIONS = Object.keys(REGION_LABEL) as ProductRegion[];
 
 const tableColumnsStyle = {
   gridTemplateColumns: "48px 2.4fr 1.2fr 0.8fr 1.3fr 1fr 0.9fr 1.2fr 150px",
@@ -138,6 +142,7 @@ export function AdminProductManagement({
 
   const [keyword, setKeyword] = useState("");
   const [themeFilter, setThemeFilter] = useState("전체 테마");
+  const [regionFilter, setRegionFilter] = useState("전체 대륙");
   const [countryFilter, setCountryFilter] = useState("전체 나라");
   const [statusFilter, setStatusFilter] = useState("전체 상태");
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(() => new Set());
@@ -198,6 +203,8 @@ export function AdminProductManagement({
   const filteredItems = items.filter((p) => {
     if (keyword.trim() && !`${p.title} ${p.productCode}`.toLowerCase().includes(keyword.trim().toLowerCase())) return false;
     if (themeFilter !== "전체 테마" && String(p.theme?.id) !== themeFilter) return false;
+    if (regionFilter === "미지정" && p.region) return false;
+    if (regionFilter !== "전체 대륙" && regionFilter !== "미지정" && p.region !== regionFilter) return false;
     if (countryFilter !== "전체 나라" && p.country !== countryFilter) return false;
     if (statusFilter !== "전체 상태" && p.status !== statusFilter) return false;
     return true;
@@ -260,6 +267,15 @@ export function AdminProductManagement({
               {FIXED_THEMES.map((t) => (
                 <option key={t.id} value={String(t.id)}>{t.name}</option>
               ))}
+            </SelectField>
+          </div>
+          <div className="w-[130px]">
+            <SelectField value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)}>
+              <option value="전체 대륙">전체 대륙</option>
+              {REGIONS.map((r) => (
+                <option key={r} value={r}>{REGION_LABEL[r]}</option>
+              ))}
+              <option value="미지정">대륙 미지정</option>
             </SelectField>
           </div>
           <div className="w-[130px]">
@@ -333,7 +349,7 @@ export function AdminProductManagement({
                     onChange={toggleAll}
                   />
                 </div>
-                {["상품명 / 상품코드", "테마", "나라", "출발일 / 신청 인원", "기본가격", "판매 상태", "모집 마감", "관리"].map((h) => (
+                {["상품명 / 상품코드", "테마", "대륙 / 나라", "출발일 / 신청 인원", "기본가격", "판매 상태", "모집 마감", "관리"].map((h) => (
                   <div key={h} className="flex items-center justify-center border-r border-b border-[#dde4e8] px-2.5 font-['42dot_Sans:Bold'] text-[11px] font-bold text-[#65717e]">
                     {h}
                   </div>
@@ -368,7 +384,12 @@ export function AdminProductManagement({
                     <span className="text-[11px] text-[#65717e]">{product.productCode}</span>
                   </div>
                   <div className="flex items-center justify-center border-r border-b border-[#dde4e8] px-1 text-center text-xs">{product.theme?.name ?? "-"}</div>
-                  <div className="flex items-center justify-center border-r border-b border-[#dde4e8] text-xs">{product.country}</div>
+                  <div className="flex flex-col items-center justify-center border-r border-b border-[#dde4e8] text-xs">
+                    <span className={product.region ? "" : "font-bold text-[#c33]"}>
+                      {product.region ? REGION_LABEL[product.region] : "대륙 미지정"}
+                    </span>
+                    <span className="text-[11px] text-[#65717e]">{product.country}</span>
+                  </div>
                   <div className="flex flex-col items-center justify-center border-r border-b border-[#dde4e8] text-xs">
                     <span>{product.departureDate}</span>
                     <span className="text-[11px] text-[#65717e]">{product.currentPeople} / {product.maxPeople}명</span>
@@ -413,12 +434,14 @@ function ProductDetailView({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [nextStatus, setNextStatus] = useState<ProductStatus>("CLOSED");
+  const [nextRegion, setNextRegion] = useState<ProductRegion | "">("");
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const res = await fetchProductDetail(productId);
       setDetail(res);
+      setNextRegion(res.product.region ?? "");
       setError("");
     } catch (err) {
       setError(errorMessage(err));
@@ -437,6 +460,25 @@ function ProductDetailView({
         setNotice(message);
         await load();
       }
+    } catch (err) {
+      setNotice("");
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const submitRegion = async () => {
+    if (!nextRegion) {
+      setError("대륙을 선택해 주세요.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await changeProductRegion(productId, nextRegion);
+      setError("");
+      setNotice(`대륙을 '${REGION_LABEL[nextRegion]}'(으)로 변경했습니다.`);
+      await load();
     } catch (err) {
       setNotice("");
       setError(errorMessage(err));
@@ -473,6 +515,7 @@ function ProductDetailView({
                 <InfoField label="상품명">{product.title}</InfoField>
                 <InfoField label="상품코드">{product.productCode}</InfoField>
                 <InfoField label="테마">{product.theme?.name ?? "-"}</InfoField>
+                <InfoField label="대륙">{product.region ? REGION_LABEL[product.region] : "미지정"}</InfoField>
                 <InfoField label="나라 / 기간">{product.country} / {product.duration ?? "-"}</InfoField>
                 <InfoField label="출발 ~ 귀국">{product.departureDate} ~ {product.returnDate}</InfoField>
                 <InfoField label="모집 마감">{dateTime(product.deadline)}</InfoField>
@@ -480,6 +523,30 @@ function ProductDetailView({
                 <InfoField label="기본가격">{won(product.basePrice)} (1인)</InfoField>
                 <InfoField label="판매 상태">{PRODUCT_STATUS_LABEL[product.status]}</InfoField>
                 <InfoField label="설명">{detail.description || "-"}</InfoField>
+              </div>
+            </Panel>
+
+            <Panel title="대륙 변경">
+              <div className="flex flex-wrap items-center gap-3 p-[18px]">
+                <div className="w-[180px]">
+                  <SelectField value={nextRegion} onChange={(e) => setNextRegion(e.target.value as ProductRegion)}>
+                    {!nextRegion && <option value="">대륙 선택</option>}
+                    {REGIONS.map((r) => (
+                      <option key={r} value={r}>{REGION_LABEL[r]}</option>
+                    ))}
+                  </SelectField>
+                </div>
+                <button
+                  type="button"
+                  disabled={saving || !nextRegion || nextRegion === product.region}
+                  onClick={() => void submitRegion()}
+                  className={`${primaryButton} disabled:opacity-60`}
+                >
+                  대륙 변경
+                </button>
+                <p className="text-xs text-[#65717e]">
+                  고객 화면의 지역 필터(국내·아시아·유럽 등)에 이 값이 쓰여요.
+                </p>
               </div>
             </Panel>
 
@@ -634,6 +701,12 @@ function ProductCreateView({
     const fd = new FormData(e.currentTarget);
     const get = (key: string) => String(fd.get(key) || "").trim();
 
+    const region = get("region") as ProductRegion | "";
+    if (!region) {
+      setError("대륙을 선택해 주세요.");
+      return;
+    }
+
     const grades = (["CLASSIC", "GRAND", "PREMIUM"] as TourGradeKey[]).filter(
       (g) => selectedTheme.allowedGrades.includes(g) && gradePrices[g].enabled,
     );
@@ -679,6 +752,7 @@ function ProductCreateView({
         productCode: get("productCode"),
         title: get("title"),
         country: get("country"),
+        region,
         duration: get("duration"),
         description: get("description"),
         basePrice: toNumber(get("price")),
@@ -726,6 +800,14 @@ function ProductCreateView({
               </InfoField>
               <InfoField label="상품명 *">
                 <input name="title" maxLength={255} className={fieldClass} required />
+              </InfoField>
+              <InfoField label="대륙 *">
+                <SelectField name="region" defaultValue="">
+                  <option value="" disabled>대륙 선택</option>
+                  {REGIONS.map((r) => (
+                    <option key={r} value={r}>{REGION_LABEL[r]}</option>
+                  ))}
+                </SelectField>
               </InfoField>
               <InfoField label="나라 *">
                 <input name="country" maxLength={50} className={fieldClass} required />

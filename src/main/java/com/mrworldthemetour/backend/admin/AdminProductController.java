@@ -46,6 +46,13 @@ public class AdminProductController {
         return ResponseEntity.noContent().build();
     } //판매 시작, 판매 중지, 출발 취소 등 상태 변경
 
+    @PatchMapping("/{productId}/region")
+    public ResponseEntity<Void> changeRegion(@PathVariable("productId") Long productId,
+            @Valid @RequestBody ProductDto.RegionChangeRequest request) {
+        productService.changeRegion(productId, request.region());
+        return ResponseEntity.noContent().build();
+    } //여행 지역(대륙) 변경
+
     @PostMapping("/{productId}/options")
     public ResponseEntity<ProductDto.OptionResponse> addOption(
             @PathVariable("productId") Long productId,

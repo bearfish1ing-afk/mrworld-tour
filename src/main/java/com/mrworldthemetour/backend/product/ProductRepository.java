@@ -24,6 +24,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             WHERE p.status IN :statuses
               AND p.deadline > :now
               AND (:themeId IS NULL OR p.theme.id = :themeId)
+              AND (:region IS NULL OR p.region = :region)
               AND (:departureFrom IS NULL
                    OR p.departureDate >= :departureFrom)
               AND (:departureTo IS NULL
@@ -44,6 +45,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("statuses") Collection<ProductStatus> statuses,
             @Param("now") LocalDateTime now,
             @Param("themeId") Long themeId,
+            @Param("region") ProductRegion region,
             @Param("departureFrom") LocalDate departureFrom,
             @Param("departureTo") LocalDate departureTo,
             @Param("minPrice") Long minPrice,
@@ -63,6 +65,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Product p WHERE p.id = :id")
     Optional<Product> findByIdForUpdate(@Param("id") Long id);
+
+    //대륙 미지정 상품 (기존 데이터 채우기용)
+    List<Product> findByRegionIsNull();
 
     //모집 마감
     @Query("SELECT p.id FROM Product p WHERE p.status = :status AND p.deadline < :now")

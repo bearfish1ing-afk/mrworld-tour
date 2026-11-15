@@ -38,6 +38,7 @@ public final class ProductDto {
             String productCode,
             String title,
             String country,
+            ProductRegion region,
             String duration,
             Long basePrice,
             ProductStatus status,
@@ -54,6 +55,7 @@ public final class ProductDto {
                     product.getProductCode(),
                     product.getTitle(),
                     product.getCountry(),
+                    product.getRegion(),
                     product.getDuration(),
                     product.getBasePrice(),
                     product.getStatus(),
@@ -166,6 +168,7 @@ public final class ProductDto {
             @jakarta.validation.constraints.Size(max = 255) String title,
             @jakarta.validation.constraints.NotBlank
             @jakarta.validation.constraints.Size(max = 50) String country,
+            ProductRegion region, // 비어 있으면 국가명으로 추정, 추정 불가 시 오류
             @jakarta.validation.constraints.Size(max = 20) String duration,
             @jakarta.validation.constraints.Size(max = 1000) String description,
             @jakarta.validation.constraints.NotNull
@@ -182,6 +185,11 @@ public final class ProductDto {
             List<@jakarta.validation.constraints.NotNull @jakarta.validation.Valid OptionCreateRequest> options,
             @jakarta.validation.constraints.NotEmpty
             List<@jakarta.validation.constraints.NotNull @jakarta.validation.Valid GradeCreateRequest> grades
+    ) {}
+
+    //관리자 여행 지역(대륙) 변경
+    public record RegionChangeRequest(
+            @jakarta.validation.constraints.NotNull ProductRegion region
     ) {}
 
     //관리자 판매 상태 변경

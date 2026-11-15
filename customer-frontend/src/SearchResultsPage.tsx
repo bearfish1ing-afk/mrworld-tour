@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { errorMessage, isAbort } from "./api/client"
 import { searchProducts, voiceSearch } from "./api/customer"
-import type { ProductSummary } from "./api/types"
+import type { ProductRegion, ProductSummary } from "./api/types"
 import {
   themeBackendIds,
   themeIdFromLabel,
@@ -21,7 +21,8 @@ export type SearchRequest = {
 
 const searchAsset = (name: string) => `/assets/search-4001-13/${name}`
 
-const regions = ["전체", "유럽", "동남아", "일본", "남태평양", "미주", "국내"]
+// 대륙 기준 지역 (국내는 따로 분리)
+const regions = ["전체", "국내", "아시아", "유럽", "아메리카", "오세아니아", "아프리카"]
 const themes = ["전체", "허니문", "효도", "골프", "트레킹"]
 const sortOptions = ["추천순", "낮은 가격순", "높은 가격순", "출발일순"]
 const durationOptions = ["전체", "3~4일", "5~6일", "7일 이상"]
@@ -43,20 +44,39 @@ function priceRangeFrom(min: number | null, max: number | null): string {
   return found ? found[0] : "전체"
 }
 
-// 백엔드에는 지역 정보가 없어서 국가명으로 지역을 나눔
-const regionCountries: Record<string, string[]> = {
-  유럽: ["그리스", "프랑스", "이탈리아", "스위스", "스페인", "영국", "독일", "오스트리아", "체코", "포르투갈", "크로아티아", "네덜란드", "노르웨이", "아이슬란드", "튀르키예", "터키", "헝가리"],
-  동남아: ["태국", "베트남", "인도네시아", "발리", "필리핀", "말레이시아", "싱가포르", "라오스", "캄보디아"],
-  일본: ["일본"],
-  남태평양: ["몰디브", "괌", "사이판", "피지", "호주", "뉴질랜드", "팔라우", "타히티", "모리셔스"],
-  미주: ["미국", "하와이", "캐나다", "멕시코", "페루", "칠레"],
-  국내: ["한국", "대한민국", "국내", "제주"],
+// 화면의 지역 이름 → 백엔드 대륙 코드 (관리자가 상품 등록 시 대륙을 지정)
+const regionCodes: Record<string, ProductRegion> = {
+  국내: "DOMESTIC",
+  아시아: "ASIA",
+  유럽: "EUROPE",
+  아메리카: "AMERICA",
+  오세아니아: "OCEANIA",
+  아프리카: "AFRICA",
 }
 
-function matchesRegion(product: ProductSummary, region: string) {
-  if (region === "전체") return true
-  const names = regionCountries[region] ?? []
-  return names.some((name) => product.country.includes(name) || product.title.includes(name))
+// "유럽 여행", "아시아 쪽 상품"처럼 지역 이름이 들어간 검색어를 지역 필터 + 나머지 키워드로 나눔
+// 예전 지역 이름이나 흔히 쓰는 말도 대륙으로 인식
+const regionAliases: Record<string, string> = {
+  동남아: "아시아",
+  중동: "아시아",
+  미주: "아메리카",
+  남미: "아메리카",
+  북미: "아메리카",
+  남태평양: "오세아니아",
+}
+
+function splitRegion(text: string): { region: string; rest: string } | null {
+  const word =
+    regions.find((r) => r !== "전체" && text.includes(r)) ??
+    Object.keys(regionAliases).find((alias) => text.includes(alias))
+  if (!word) return null
+  const region = regionAliases[word] ?? word
+  const rest = text
+    .replace(word, " ")
+    .replace(/여행|상품|쪽|지역|찾아줘|보여줘/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+  return { region, rest }
 }
 
 function matchesDuration(product: ProductSummary, duration: string) {
@@ -204,8 +224,9 @@ export default function SearchResultsPage({
       voiceSearch(trimmed, controller.signal)
         .then(({ filters }) => {
           setTheme(themeLabelById(filters.themeId))
-          setRegion("전체")
-          setSearchText(filters.keyword ?? "")
+          const voiceRegion = splitRegion(filters.keyword ?? "") ?? splitRegion(trimmed)
+          setRegion(voiceRegion?.region ?? "전체")
+          setSearchText(voiceRegion ? voiceRegion.rest : filters.keyword ?? "")
           setSelectedDate(filters.departureFrom ?? "")
           setSelectedDateTo(filters.departureTo ?? "")
           setSelectedPriceRange(priceRangeFrom(filters.minPrice, filters.maxPrice))
@@ -213,10 +234,14 @@ export default function SearchResultsPage({
         })
         .catch((error) => {
           if (isAbort(error)) return
-          setVoiceNote(`음성 검색을 해석하지 못해 “${trimmed}”(으)로 검색했습니다.`)
+          // 서버가 알려준 이유를 같이 보여줌 (예: OpenAI 키 미설정, 시간 초과)
+          setVoiceNote(
+            `음성 검색을 해석하지 못해 “${trimmed}”(으)로 검색했습니다. (${errorMessage(error)})`,
+          )
           setTheme("전체")
-          setRegion("전체")
-          setSearchText(trimmed)
+          const fallbackRegion = splitRegion(trimmed)
+          setRegion(fallbackRegion?.region ?? "전체")
+          setSearchText(fallbackRegion ? fallbackRegion.rest : trimmed)
         })
         .finally(() => {
           if (!controller.signal.aborted) setReady(true)
@@ -224,10 +249,11 @@ export default function SearchResultsPage({
       return () => controller.abort()
     }
 
-    if (regions.includes(trimmed)) {
-      setRegion(trimmed)
+    const typedRegion = splitRegion(trimmed)
+    if (typedRegion) {
+      setRegion(typedRegion.region)
       setTheme("전체")
-      setSearchText("")
+      setSearchText(typedRegion.rest)
     } else if (themes.includes(trimmed)) {
       setTheme(trimmed)
       setRegion("전체")
@@ -253,6 +279,7 @@ export default function SearchResultsPage({
     searchProducts(
       {
         themeId: themeId ? themeBackendIds[themeId] : undefined,
+        region: regionCodes[region],
         keyword: searchText || undefined,
         departureFrom: selectedDate || undefined,
         departureTo: selectedDateTo || undefined,
@@ -273,7 +300,7 @@ export default function SearchResultsPage({
         if (!controller.signal.aborted) setLoading(false)
       })
     return () => controller.abort()
-  }, [ready, theme, searchText, selectedDate, selectedDateTo, selectedPriceRange, refreshKey])
+  }, [ready, region, theme, searchText, selectedDate, selectedDateTo, selectedPriceRange, refreshKey])
 
   useEffect(() => {
     setPage(1)
@@ -291,16 +318,14 @@ export default function SearchResultsPage({
 
   // 지역/기간/정렬은 화면에서 처리
   const filteredProducts = useMemo(() => {
-    const list = results.filter(
-      (product) => matchesRegion(product, region) && matchesDuration(product, selectedDuration),
-    )
+    const list = results.filter((product) => matchesDuration(product, selectedDuration))
     return [...list].sort((a, b) => {
       if (sort === "낮은 가격순") return a.basePrice - b.basePrice
       if (sort === "높은 가격순") return b.basePrice - a.basePrice
       if (sort === "출발일순") return a.departureDate.localeCompare(b.departureDate)
       return 0
     })
-  }, [results, region, selectedDuration, sort])
+  }, [results, selectedDuration, sort])
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
