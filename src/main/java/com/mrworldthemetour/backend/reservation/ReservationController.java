@@ -55,17 +55,6 @@ public class ReservationController {
     }
 
 
-    //예약 변경(호텔, 차량, 식사, 인원)
-    @PatchMapping("/{reservationId}")
-    public ResponseEntity<ReservationCreateResponse> change(
-            Authentication authentication,
-            @PathVariable Long reservationId,
-            @RequestBody ReservationChangeRequest request
-    ){
-        Long userId=Long.valueOf(authentication.getName());
-        return ResponseEntity.ok(reservationService.change(userId, reservationId, request));
-    }
-
     //예약 취소
     @PatchMapping("/{reservationId}/cancel")
     public ResponseEntity<Void> cancel(

@@ -70,15 +70,6 @@ public class ReservationService {
         return toResponse(saved);
     }
 
-    //예약 변경(고객)
-    @Transactional
-    public ReservationCreateResponse change(Long userId, Long reservationId, ReservationChangeRequest request) {
-        Reservation reservation = findMyReservation(userId, reservationId);
-        Product product = lockProduct(reservation.getProductId());
-        validateBeforeDeadline(product, "RECRUITMENT_CLOSED", "모집 마감 후에는 변경할 수 없습니다.");
-        return applyChange(reservation, product, request);
-    }
-
     // 고객/관리자 공통 변경 로직
     @Transactional
     public ReservationCreateResponse applyChange(Reservation reservation, Product product,
