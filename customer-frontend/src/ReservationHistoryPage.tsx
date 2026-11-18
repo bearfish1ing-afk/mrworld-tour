@@ -566,8 +566,8 @@ export default function ReservationHistoryPage({
             )}
           </div>
           <p className="mt-5 font-dot-regular text-xs leading-[1.45] text-[#707070]">
-            대기 예약은 담당자 확인 후 확정됩니다. 예약 변경 및 취소는 예약 상세
-            또는 고객센터에서 문의해 주세요.
+            대기 예약은 담당자 확인 후 확정됩니다. 예약 취소는 예약 상세에서 할 수
+            있으며 예약 변경은 고객센터로 문의해 주세요.
           </p>
         </section>
       </div>

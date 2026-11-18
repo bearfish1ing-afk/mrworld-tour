@@ -52,12 +52,5 @@ public class AdminProductController {
         productService.changeRegion(productId, request.region());
         return ResponseEntity.noContent().build();
     } //여행 지역(대륙) 변경
-
-    @PostMapping("/{productId}/options")
-    public ResponseEntity<ProductDto.OptionResponse> addOption(
-            @PathVariable("productId") Long productId,
-            @Valid @RequestBody ProductDto.OptionCreateRequest request) {
-        return ResponseEntity.status(201)
-                .body(productService.addOption(productId, request));
-    } //여행 상품에 옵션 추가
+    
 }
