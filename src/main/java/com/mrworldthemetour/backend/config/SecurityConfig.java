@@ -237,6 +237,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/reservations/price"
+                                "/api/voice/products/search"
                         ).permitAll()
 
                         .anyRequest().authenticated()
